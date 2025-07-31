@@ -9,6 +9,7 @@ import HandDisplay from '../components/HandDisplay';
 import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
+import logo from '../assets/logo2.png'; // <-- 1. IMPORT THE LOGO
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -208,7 +209,7 @@ function Home() {
     const PageHeader = ({ title }) => (
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
             <h1>{title}</h1>
-            <img src="/logo2.png" alt="Logo" style={{ height: '80px' }} />
+            <img src={logo} alt="Logo" style={{ height: '80px' }} />
         </div>
     );
 
