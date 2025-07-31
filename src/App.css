@@ -8,40 +8,53 @@ body {
     padding: 0 20px;
 }
 
-/* --- Responsive Tile Grid Styles --- */
+/* --- NEW Vertical Block & Responsive Tile Row Styles --- */
 .tile-grid-container {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 20px; /* Space between each suit block */
 }
 
-.tile-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 5px;
-    padding: 10px;
+.suit-block {
+    padding: 15px;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     background-color: #daebfd;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-.suit-label {
-    font-weight: bold;
-    margin-right: 15px;
-    width: 60px;
-    flex-shrink: 0;
-    text-align: right;
+.suit-block h3 {
+    margin-top: 0;
+    margin-bottom: 15px; /* Space between title and tiles */
+    font-size: 18px;
+    color: #4a5568;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
 }
 
-/* --- Image-Based Tile Styles --- */
+.tile-container {
+    display: flex;       /* This makes the tiles go in a row */
+    flex-wrap: wrap;     /* This makes them wrap to the next line on small screens */
+    gap: 8px;            /* Space between individual tiles */
+}
+
+
+/* --- LARGER Tile Styles --- */
 .tile {
-    width: 50px;
-    height: 70px;
+    /* Increased width and height for a ~20% area increase */
+    width: 55px;
+    height: 77px;
     border: 2px solid #ccc;
     box-sizing: border-box;
     transition: all 0.2s ease-in-out;
-    position: relative; /* Crucial for positioning controls */
+    position: relative;
+}
+
+.tile img {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .tile.selected {
@@ -56,16 +69,16 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 20px;
-    background-color: rgba(255, 255, 255, 0.8);
+    height: 22px;
+    background-color: rgba(255, 255, 255, 0.85);
 }
 
 .quantity-display {
     flex: 1;
     text-align: center;
     font-weight: bold;
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 15px;
+    line-height: 22px;
     background-color: #f0f0f0;
 }
 
@@ -73,7 +86,7 @@ body {
     flex: 1;
     border: none;
     background-color: #ddd;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     cursor: pointer;
     padding: 0;

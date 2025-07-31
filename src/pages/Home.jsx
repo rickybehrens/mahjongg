@@ -9,7 +9,6 @@ import HandDisplay from '../components/HandDisplay';
 import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
-// The problematic import has been removed.
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -56,38 +55,46 @@ function Home() {
     useEffect(() => {
         if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED) return;
 
-        const gameSettings = { jokerCount, blankCount };
-        const newResults = calculateProbabilities(handAsArray, gameSettings, activeWinningHands);
-        setProbabilities(newResults);
+        try {
+            const gameSettings = { jokerCount, blankCount };
+            const newResults = calculateProbabilities(handAsArray, gameSettings, activeWinningHands);
+            setProbabilities(newResults);
 
-        const handsWithMetrics = activeWinningHands.map(hand => ({
-            ...hand,
-            prob: newResults[hand.name]?.prob || 0,
-            value: newResults[hand.name]?.value || 0,
-        }));
-        
-        handsWithMetrics.sort((a, b) => b.prob - a.prob);
-        setSortedHands(handsWithMetrics);
-        
-        setTargetHand(null);
+            const handsWithMetrics = activeWinningHands.map(hand => ({
+                ...hand,
+                prob: newResults[hand.name]?.prob || 0,
+                value: newResults[hand.name]?.value || 0,
+            }));
+            
+            handsWithMetrics.sort((a, b) => b.prob - a.prob);
+            setSortedHands(handsWithMetrics);
+            
+            setTargetHand(null);
 
-        if (gamePhase === GAME_PHASES.CHARLESTON_DECISION) {
-            const decision = getCharlestonRecommendation(handsWithMetrics);
-            setCharlestonDecision(decision);
-        }
+            if (gamePhase === GAME_PHASES.CHARLESTON_DECISION) {
+                const decision = getCharlestonRecommendation(handsWithMetrics);
+                setCharlestonDecision(decision);
+            }
 
-        if (gamePhase === GAME_PHASES.FINAL_PASS) {
-            const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
-            setFinalPassRecommendation(recommendation);
+            if (gamePhase === GAME_PHASES.FINAL_PASS) {
+                const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
+                setFinalPassRecommendation(recommendation);
+            }
+        } catch (error) {
+            console.error("An error occurred during probability calculation:", error);
+            // You could set an error state here to display a message to the user
         }
     }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray, jokerCount, blankCount]);
 
-    const activeTopHand = targetHand || sortedHands[0];
+    // --- THIS IS THE FIX ---
+    // Ensure activeTopHand is always a valid object, even if sortedHands is empty.
+    const activeTopHand = targetHand || (sortedHands && sortedHands.length > 0 ? sortedHands[0] : null);
 
     const totalTileCount = useMemo(() => {
         return Object.values(playerHand).reduce((sum, count) => sum + count, 0);
     }, [playerHand]);
 
+    // ... (All other handler functions remain the same) ...
     const handleQuantityChange = (tile, action) => {
         if (gamePhase !== GAME_PHASES.INITIAL_SELECTION) return;
         const currentCount = playerHand[tile.id] || 0;
@@ -152,7 +159,10 @@ function Home() {
         const limit = gamePhase === GAME_PHASES.FINAL_GET ? finalPassCount : 3;
 
         if (action === 'increment' && totalReceived < limit) {
-            setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
+            const availableCount = remainingDeckCounts[tile.id] || 0;
+            if (currentCount < availableCount) {
+                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
+            }
         }
         if (action === 'decrement' && currentCount > 0) {
             const newCount = currentCount - 1;
@@ -236,7 +246,7 @@ function Home() {
                         <div>
                             <label htmlFor="jokers-select">Jokers: </label>
                             <select id="jokers-select" value={jokerCount} onChange={e => setJokerCount(parseInt(e.target.value))}>
-                                {[8, 9, 10].map(i => <option key={i} value={i}>{i}</option>)}
+                                {[8, 10].map(i => <option key={i} value={i}>{i}</option>)}
                             </select>
                         </div>
                         <div>

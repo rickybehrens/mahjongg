@@ -3,7 +3,6 @@ import React from 'react';
 import Tile from './Tile';
 import gridData from '../data/gridStructure';
 
-// The TileGrid now accepts blankCount to conditionally render blank tiles.
 function TileGrid({ onQuantityChange, selectedTiles, blankCount }) {
     const renderTile = (tile) => {
         if (!tile) return null;
@@ -19,30 +18,48 @@ function TileGrid({ onQuantityChange, selectedTiles, blankCount }) {
 
     return (
         <div className="tile-grid-container">
-            {/* Suits Rows */}
-            {gridData.suits.map((suitRow) => (
-                <div key={suitRow.name} className="tile-row">
-                    <div className="tile-cell suit-label">{suitRow.name}</div>
-                    {suitRow.tiles.map(renderTile)}
-                    {renderTile(suitRow.dragon)}
+            {/* Each suit is now wrapped in a "suit-block".
+              The <h3> title is a block-level element, so it naturally sits on its own line
+              above the "tile-container" div that holds the actual tiles.
+            */}
+            <div className="suit-block">
+                <h3>Dots</h3>
+                <div className="tile-container">
+                    {gridData.suits.find(s => s.name === 'Dot').tiles.map(renderTile)}
+                    {renderTile(gridData.suits.find(s => s.name === 'Dot').dragon)}
                 </div>
-            ))}
-
-            {/* Winds Row */}
-            <div className="tile-row">
-                <div className="tile-cell suit-label">Winds</div>
-                {gridData.winds.map(renderTile)}
             </div>
 
-            {/* Special Row */}
-            <div className="tile-row">
-                <div className="tile-cell suit-label">Special</div>
-                {gridData.special.flowers.map(renderTile)}
-                {gridData.special.jokers.map(renderTile)}
-                
-                {/* --- THIS IS THE FIX --- */}
-                {/* Only render the Blank tiles if the user has selected more than 0 blanks for the game. */}
-                {blankCount > 0 && gridData.special.blanks.map(renderTile)}
+            <div className="suit-block">
+                <h3>Bams</h3>
+                <div className="tile-container">
+                    {gridData.suits.find(s => s.name === 'Bamboo').tiles.map(renderTile)}
+                    {renderTile(gridData.suits.find(s => s.name === 'Bamboo').dragon)}
+                </div>
+            </div>
+
+            <div className="suit-block">
+                <h3>Cracks</h3>
+                <div className="tile-container">
+                    {gridData.suits.find(s => s.name === 'Crack').tiles.map(renderTile)}
+                    {renderTile(gridData.suits.find(s => s.name === 'Crack').dragon)}
+                </div>
+            </div>
+
+            <div className="suit-block">
+                <h3>Winds</h3>
+                <div className="tile-container">
+                    {gridData.winds.map(renderTile)}
+                </div>
+            </div>
+
+            <div className="suit-block">
+                <h3>Special</h3>
+                <div className="tile-container">
+                    {gridData.special.flowers.map(renderTile)}
+                    {gridData.special.jokers.map(renderTile)}
+                    {blankCount > 0 && gridData.special.blanks.map(renderTile)}
+                </div>
             </div>
         </div>
     );
