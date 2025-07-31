@@ -9,7 +9,7 @@ import HandDisplay from '../components/HandDisplay';
 import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
-import logo from '../assets/logo2.png'; // <-- 1. IMPORT THE LOGO
+// The problematic import has been removed.
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -56,7 +56,8 @@ function Home() {
     useEffect(() => {
         if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED) return;
 
-        const newResults = calculateProbabilities(handAsArray, activeWinningHands);
+        const gameSettings = { jokerCount, blankCount };
+        const newResults = calculateProbabilities(handAsArray, gameSettings, activeWinningHands);
         setProbabilities(newResults);
 
         const handsWithMetrics = activeWinningHands.map(hand => ({
@@ -79,7 +80,7 @@ function Home() {
             const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
             setFinalPassRecommendation(recommendation);
         }
-    }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray]);
+    }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray, jokerCount, blankCount]);
 
     const activeTopHand = targetHand || sortedHands[0];
 
@@ -209,7 +210,8 @@ function Home() {
     const PageHeader = ({ title }) => (
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
             <h1>{title}</h1>
-            <img src={logo} alt="Logo" style={{ height: '80px' }} />
+            {/* The src path now points directly to the public folder */}
+            <img src="/logo2.png" alt="Logo" style={{ height: '80px' }} />
         </div>
     );
 
