@@ -34,12 +34,10 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
     }
 
     const playerTilesArray = handObjToArray(hand);
-    const { sortedHand, keepers, either } = sortHandAndIdentifyJunk(playerTilesArray, topHand);
+    const { sortedHand, junkTiles } = sortHandAndIdentifyJunk(playerTilesArray, topHand);
 
-    // The sorter places tiles in order: keepers, then eithers, then junk.
-    // We can use the lengths of these arrays to determine a tile's category by its index.
-    const keeperCount = keepers.length;
-    const eitherCount = either.length;
+    // Calculate the number of keeper tiles. The sorter places them first.
+    const keeperCount = sortedHand.length - junkTiles.length;
 
     return (
         <div style={{ display: 'flex', flexWrap: 'wrap', padding: '10px' }}>
@@ -50,15 +48,13 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
                 const instanceKey = `${tile.id}-${index}`;
                 const isSelected = selectedForAction.includes(instanceKey);
                 
+                // A tile is a "keeper" if its position in the sorted array is before the junk tiles.
+                // This correctly handles duplicates.
                 const isKeeper = index < keeperCount;
-                const isEither = index >= keeperCount && index < keeperCount + eitherCount;
 
-                let border = '3px solid #c30000ff'; // Default for junk tiles
-                if (isEither) {
-                    border = '3px solid #ffc107'; // Yellow for "Either"
-                }
+                let border = '1px solid #ccc'; // Default for junk tiles (no margin)
                 if (isKeeper) {
-                    border = '3px solid #28a745'; // Green for "Keeper"
+                    border = '3px solid #28a745'; // Green for keepers
                 }
                 if (isSelected) {
                     border = '3px solid #007bff'; // Blue for selected overrides everything

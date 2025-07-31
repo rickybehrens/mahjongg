@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import TileGrid from '../components/TileGrid';
 import Hand from '../components/Hand';
-import { getCharlestonRecommendation, recommendFinalPass } from '../helpers/charlestonHelper';
+import { getCharlestonRecommendation } from '../helpers/charlestonHelper';
 import { winningHandsData, availableYears } from '../data/winningHands';
 import tiles from '../data/tiles';
 import HandDisplay from '../components/HandDisplay';
@@ -40,7 +40,6 @@ function Home() {
     const [tilesToPass, setTilesToPass] = useState([]);
     const [receivedTiles, setReceivedTiles] = useState({});
     const [charlestonDecision, setCharlestonDecision] = useState({ action: 'continue', reason: '' });
-    const [finalPassRecommendation, setFinalPassRecommendation] = useState({ count: 0, tiles: [] });
     const [finalPassCount, setFinalPassCount] = useState(0);
 
     const maxHandSize = isDealer ? 14 : 13;
@@ -56,8 +55,9 @@ function Home() {
         if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED) return;
 
         try {
-            const gameSettings = { jokerCount, blankCount };
-            const newResults = calculateProbabilities(handAsArray, gameSettings, activeWinningHands);
+            // --- THIS IS THE FIX ---
+            // The calculator now only needs the hand and the winning hands data.
+            const newResults = calculateProbabilities(handAsArray, activeWinningHands);
             setProbabilities(newResults);
 
             const handsWithMetrics = activeWinningHands.map(hand => ({
@@ -75,26 +75,17 @@ function Home() {
                 const decision = getCharlestonRecommendation(handsWithMetrics);
                 setCharlestonDecision(decision);
             }
-
-            if (gamePhase === GAME_PHASES.FINAL_PASS) {
-                const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
-                setFinalPassRecommendation(recommendation);
-            }
         } catch (error) {
             console.error("An error occurred during probability calculation:", error);
-            // You could set an error state here to display a message to the user
         }
-    }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray, jokerCount, blankCount]);
+    }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray]);
 
-    // --- THIS IS THE FIX ---
-    // Ensure activeTopHand is always a valid object, even if sortedHands is empty.
-    const activeTopHand = targetHand || (sortedHands && sortedHands.length > 0 ? sortedHands[0] : null);
+    const activeTopHand = targetHand || sortedHands[0];
 
     const totalTileCount = useMemo(() => {
         return Object.values(playerHand).reduce((sum, count) => sum + count, 0);
     }, [playerHand]);
 
-    // ... (All other handler functions remain the same) ...
     const handleQuantityChange = (tile, action) => {
         if (gamePhase !== GAME_PHASES.INITIAL_SELECTION) return;
         const currentCount = playerHand[tile.id] || 0;
@@ -159,10 +150,7 @@ function Home() {
         const limit = gamePhase === GAME_PHASES.FINAL_GET ? finalPassCount : 3;
 
         if (action === 'increment' && totalReceived < limit) {
-            const availableCount = remainingDeckCounts[tile.id] || 0;
-            if (currentCount < availableCount) {
-                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
-            }
+            setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
         }
         if (action === 'decrement' && currentCount > 0) {
             const newCount = currentCount - 1;
@@ -220,7 +208,6 @@ function Home() {
     const PageHeader = ({ title }) => (
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
             <h1>{title}</h1>
-            {/* The src path now points directly to the public folder */}
             <img src="/logo2.png" alt="Logo" style={{ height: '80px' }} />
         </div>
     );
@@ -246,7 +233,7 @@ function Home() {
                         <div>
                             <label htmlFor="jokers-select">Jokers: </label>
                             <select id="jokers-select" value={jokerCount} onChange={e => setJokerCount(parseInt(e.target.value))}>
-                                {[8, 10].map(i => <option key={i} value={i}>{i}</option>)}
+                                {[8, 9, 10].map(i => <option key={i} value={i}>{i}</option>)}
                             </select>
                         </div>
                         <div>
