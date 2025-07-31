@@ -1,0 +1,2 @@
+src/assets/tiles/*.png filter=lfs diff=lfs merge=lfs -text
+public/*.png filter=lfs diff=lfs merge=lfs -text
