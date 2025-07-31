@@ -43,8 +43,8 @@ body {
 /* --- LARGER Tile Styles --- */
 .tile {
     /* Increased width and height for a ~20% area increase */
-    width: 55px;
-    height: 77px;
+    width: 65px;
+    height: 91px;
     border: 2px solid #ccc;
     box-sizing: border-box;
     transition: all 0.2s ease-in-out;
