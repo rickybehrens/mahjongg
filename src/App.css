@@ -107,3 +107,80 @@ body {
     font-weight: bold;
     white-space: nowrap;
 }
+
+/* --- Side Menu Styles --- */
+.side-menu {
+  height: 100%;
+  width: 250px;
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  left: -250px; /* Start off-screen */
+  background-color: #111;
+  padding-top: 60px;
+  transition: 0.3s;
+  color: white;
+}
+
+.side-menu.open {
+  left: 0; /* Slide in */
+}
+
+.side-menu h2 {
+  padding: 0 16px;
+}
+
+.side-menu ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.side-menu li {
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.side-menu li:hover {
+  background-color: #575757;
+}
+
+.side-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+
+.main-content {
+  transition: margin-left 0.3s;
+}
+
+.main-content.menu-open {
+  margin-left: 250px; /* Push content over when menu is open */
+}
+
+/* --- Header and Menu Button --- */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 40px; /* Set a specific size */
+  height: 40px;
+}
+
+.menu-button img {
+    width: 100%;
+    height: 100%;
+}

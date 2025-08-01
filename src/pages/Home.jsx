@@ -1,8 +1,9 @@
 // src/pages/Home.jsx
 import React, { useState, useEffect, useMemo } from 'react';
+import PageHeader from '../components/PageHeader'; // Import the reusable component
 import TileGrid from '../components/TileGrid';
 import Hand from '../components/Hand';
-import { getCharlestonRecommendation } from '../helpers/charlestonHelper';
+import { getCharlestonRecommendation, recommendFinalPass } from '../helpers/charlestonHelper';
 import { winningHandsData, availableYears } from '../data/winningHands';
 import tiles from '../data/tiles';
 import HandDisplay from '../components/HandDisplay';
@@ -25,7 +26,7 @@ const charlestonSteps = [
     { direction: 'Left', pass: 4 }, { direction: 'Across', pass: 5 }, { direction: 'Right', pass: 6 },
 ];
 
-function Home() {
+function Home({ onMenuToggle }) {
     const [selectedYear, setSelectedYear] = useState(availableYears[0]);
     const [playerHand, setPlayerHand] = useState({});
     const [gamePhase, setGamePhase] = useState(GAME_PHASES.INITIAL_SELECTION);
@@ -40,6 +41,7 @@ function Home() {
     const [tilesToPass, setTilesToPass] = useState([]);
     const [receivedTiles, setReceivedTiles] = useState({});
     const [charlestonDecision, setCharlestonDecision] = useState({ action: 'continue', reason: '' });
+    const [finalPassRecommendation, setFinalPassRecommendation] = useState({ count: 0, tiles: [] });
     const [finalPassCount, setFinalPassCount] = useState(0);
 
     const maxHandSize = isDealer ? 14 : 13;
@@ -54,29 +56,28 @@ function Home() {
     useEffect(() => {
         if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED) return;
 
-        try {
-            // --- THIS IS THE FIX ---
-            // The calculator now only needs the hand and the winning hands data.
-            const newResults = calculateProbabilities(handAsArray, activeWinningHands);
-            setProbabilities(newResults);
+        const newResults = calculateProbabilities(handAsArray, activeWinningHands);
+        setProbabilities(newResults);
 
-            const handsWithMetrics = activeWinningHands.map(hand => ({
-                ...hand,
-                prob: newResults[hand.name]?.prob || 0,
-                value: newResults[hand.name]?.value || 0,
-            }));
-            
-            handsWithMetrics.sort((a, b) => b.prob - a.prob);
-            setSortedHands(handsWithMetrics);
-            
-            setTargetHand(null);
+        const handsWithMetrics = activeWinningHands.map(hand => ({
+            ...hand,
+            prob: newResults[hand.name]?.prob || 0,
+            value: newResults[hand.name]?.value || 0,
+        }));
+        
+        handsWithMetrics.sort((a, b) => b.prob - a.prob);
+        setSortedHands(handsWithMetrics);
+        
+        setTargetHand(null);
 
-            if (gamePhase === GAME_PHASES.CHARLESTON_DECISION) {
-                const decision = getCharlestonRecommendation(handsWithMetrics);
-                setCharlestonDecision(decision);
-            }
-        } catch (error) {
-            console.error("An error occurred during probability calculation:", error);
+        if (gamePhase === GAME_PHASES.CHARLESTON_DECISION) {
+            const decision = getCharlestonRecommendation(handsWithMetrics);
+            setCharlestonDecision(decision);
+        }
+
+        if (gamePhase === GAME_PHASES.FINAL_PASS) {
+            const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
+            setFinalPassRecommendation(recommendation);
         }
     }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray]);
 
@@ -205,18 +206,11 @@ function Home() {
         return cutOffIndex === -1 ? hands : hands.slice(0, cutOffIndex);
     }, [sortedHands, targetHand]);
 
-    const PageHeader = ({ title }) => (
-        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
-            <h1>{title}</h1>
-            <img src="/logo2.png" alt="Logo" style={{ height: '80px' }} />
-        </div>
-    );
-
     return (
         <div>
             {gamePhase === GAME_PHASES.INITIAL_SELECTION && (
                 <>
-                    <PageHeader title={`Select Your ${maxHandSize} Tiles (${totalTileCount} / ${maxHandSize})`} />
+                    <PageHeader title={`Select Your ${maxHandSize} Tiles (${totalTileCount} / ${maxHandSize})`} onMenuToggle={onMenuToggle} />
                     <div className="settings-container" style={{ margin: '10px 20px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <div>
                             <label htmlFor="year-select">Card Year: </label>
@@ -233,7 +227,7 @@ function Home() {
                         <div>
                             <label htmlFor="jokers-select">Jokers: </label>
                             <select id="jokers-select" value={jokerCount} onChange={e => setJokerCount(parseInt(e.target.value))}>
-                                {[8, 9, 10].map(i => <option key={i} value={i}>{i}</option>)}
+                                {[8, 10].map(i => <option key={i} value={i}>{i}</option>)}
                             </select>
                         </div>
                         <div>
@@ -252,9 +246,9 @@ function Home() {
 
             {(gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.FINAL_PASS || gamePhase === GAME_PHASES.GAME_STARTED) && (
                  <>
-                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && <PageHeader title={`Charleston: Pass 3 to the ${currentStep.direction}`} />}
-                    {gamePhase === GAME_PHASES.FINAL_PASS && <PageHeader title={`Final Pass Across (up to 3 tiles)`} />}
-                    {gamePhase === GAME_PHASES.GAME_STARTED && <PageHeader title="Your Final Hand" />}
+                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && <PageHeader title={`Charleston: Pass 3 to the ${currentStep.direction}`} onMenuToggle={onMenuToggle} />}
+                    {gamePhase === GAME_PHASES.FINAL_PASS && <PageHeader title={`Final Pass Across (up to 3 tiles)`} onMenuToggle={onMenuToggle} />}
+                    {gamePhase === GAME_PHASES.GAME_STARTED && <PageHeader title="Your Final Hand" onMenuToggle={onMenuToggle} />}
                     
                     {gamePhase !== GAME_PHASES.GAME_STARTED && (
                         <button onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>
@@ -283,7 +277,7 @@ function Home() {
             
             {gamePhase === GAME_PHASES.CHARLESTON_DECISION && (
                 <>
-                    <PageHeader title="Charleston Decision" />
+                    <PageHeader title="Charleston Decision" onMenuToggle={onMenuToggle} />
                      <button onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>
                         &larr; Edit Hand
                     </button>
@@ -304,6 +298,7 @@ function Home() {
                             ? `Select ${finalPassCount} Tiles You Received`
                             : `Charleston: Select 3 Tiles You Received`
                         } 
+                        onMenuToggle={onMenuToggle}
                     />
                     <TileGrid 
                         onQuantityChange={handleSelectReceivedTile} 
