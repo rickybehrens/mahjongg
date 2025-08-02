@@ -1,5 +1,8 @@
 // src/helpers/handSorter.js
 
+/**
+ * A helper function to count how many of a player's tiles match a specific hand variation.
+ */
 function countMatches(playerTileIds, variationTileIds) {
     const playerCounts = playerTileIds.reduce((acc, id) => {
         acc[id] = (acc[id] || 0) + 1;
@@ -13,7 +16,9 @@ function countMatches(playerTileIds, variationTileIds) {
 
     let matches = 0;
     for (const id in variationCounts) {
-        matches += Math.min(playerCounts[id] || 0, variationCounts[id]);
+        // Treat WD and SOAP as the same for matching purposes
+        const playerHas = (playerCounts[id] || 0) + (id === 'SOAP' ? playerCounts['WD'] || 0 : 0);
+        matches += Math.min(playerHas, variationCounts[id]);
     }
     return matches;
 }
@@ -23,7 +28,7 @@ export default function sortHandAndIdentifyJunk(playerTiles, topHand) {
         return { sortedHand: playerTiles, junkTiles: [] };
     }
 
-    const playerTileIds = playerTiles.map(t => (t.id === 'WD' ? 'SOAP' : t.id));
+    const playerTileIds = playerTiles.map(t => t.id);
     let bestFitVariation = topHand.variations[0];
     let maxMatches = -1;
 
@@ -39,51 +44,63 @@ export default function sortHandAndIdentifyJunk(playerTiles, topHand) {
 
     // 2. Create a "checklist" of tiles needed for the best-fit pattern.
     const neededChecklist = {};
-    const neededTileIds = bestFitVariation.tiles.map(t => t.id === 'SOAP' ? 'WD' : t.id);
+    const neededTileIds = bestFitVariation.tiles.map(t => t.id);
     for (const id of neededTileIds) {
         neededChecklist[id] = (neededChecklist[id] || 0) + 1;
     }
 
     const specificKeepers = [];
-    const wildcardKeepers = [];
-    const junk = [];
+    const unassigned = [];
     const playerTilesCopy = [...playerTiles];
 
+    // 3. First pass: Pull out all exact matches for the pattern.
     playerTilesCopy.forEach(tile => {
-        const tileId = tile.id === 'WD' ? 'SOAP' : tile.id;
+        const tileId = tile.id;
         if (neededChecklist[tileId] && neededChecklist[tileId] > 0) {
             specificKeepers.push(tile);
             neededChecklist[tileId]--;
         } else {
-            junk.push(tile);
+            unassigned.push(tile);
         }
     });
 
-    const remainingJunk = [];
+    // 4. Second pass: Use wildcards from the unassigned pile to fill remaining gaps.
+    const wildcardKeepers = [];
+    const junk = [];
     const canUseJokers = !topHand.name.includes("Singles and Pairs");
     let tilesStillNeeded = neededTileIds.length - specificKeepers.length;
 
-    junk.forEach(tile => {
-        if (tile.id === 'BLANK' && tilesStillNeeded > 0) {
-            wildcardKeepers.push(tile);
-            tilesStillNeeded--;
-        } else if (tile.id === 'JOKER' && canUseJokers && tilesStillNeeded > 0) {
-            wildcardKeepers.push(tile);
-            tilesStillNeeded--;
+    const wildcards = unassigned.filter(t => t.id === 'BLANK' || (t.id === 'JOKER' && canUseJokers) || t.id === 'WD');
+    const nonWildcards = unassigned.filter(t => !wildcards.includes(t));
+
+    wildcards.forEach(tile => {
+        if (tilesStillNeeded > 0) {
+            // Special check for WD: only use it as a wildcard if SOAP is needed
+            if (tile.id === 'WD' && neededChecklist['SOAP'] > 0) {
+                wildcardKeepers.push(tile);
+                neededChecklist['SOAP']--;
+                tilesStillNeeded--;
+            } else if (tile.id !== 'WD') {
+                 wildcardKeepers.push(tile);
+                 tilesStillNeeded--;
+            } else {
+                junk.push(tile);
+            }
         } else {
-            remainingJunk.push(tile);
+            junk.push(tile);
         }
     });
+    
+    junk.push(...nonWildcards);
 
+    // 5. Sort the specific keepers to match the pattern order.
     specificKeepers.sort((a, b) => {
-        const idA = a.id === 'WD' ? 'SOAP' : a.id;
-        const idB = b.id === 'WD' ? 'SOAP' : b.id;
-        const indexA = neededTileIds.indexOf(idA);
-        const indexB = neededTileIds.indexOf(idB);
+        const indexA = neededTileIds.indexOf(a.id);
+        const indexB = neededTileIds.indexOf(b.id);
         return indexA - indexB;
     });
 
-    const sortedHand = [...wildcardKeepers, ...specificKeepers, ...remainingJunk];
+    const sortedHand = [...wildcardKeepers, ...specificKeepers, ...junk];
     
-    return { sortedHand, junkTiles: remainingJunk };
+    return { sortedHand, junkTiles: junk };
 }

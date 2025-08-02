@@ -16,7 +16,9 @@ function countMatches(playerTileIds, variationTileIds) {
 
     let matches = 0;
     for (const id in variationCounts) {
-        matches += Math.min(playerCounts[id] || 0, variationCounts[id]);
+        // Treat WD and SOAP as the same for matching purposes
+        const playerHas = (playerCounts[id] || 0) + (id === 'SOAP' ? playerCounts['WD'] || 0 : 0);
+        matches += Math.min(playerHas, variationCounts[id]);
     }
     return matches;
 }
@@ -30,7 +32,7 @@ export function findMissingTiles(playerHand, winningHand) {
         return [];
     }
 
-    const playerTileIds = playerHand.map(t => t.id === 'WD' ? 'SOAP' : t.id);
+    const playerTileIds = playerHand.map(t => t.id);
     let bestFitVariations = [];
     let maxMatches = -1;
 
@@ -41,9 +43,9 @@ export function findMissingTiles(playerHand, winningHand) {
 
         if (matches > maxMatches) {
             maxMatches = matches;
-            bestFitVariations = [variation]; // Start a new list of best fits
+            bestFitVariations = [variation];
         } else if (matches === maxMatches) {
-            bestFitVariations.push(variation); // Add to the list of equally good fits
+            bestFitVariations.push(variation);
         }
     }
 
@@ -51,12 +53,12 @@ export function findMissingTiles(playerHand, winningHand) {
     return bestFitVariations.map(variation => {
         const playerCounts = {};
         let jokersAvailable = 0;
+        let blanksAvailable = 0;
         playerHand.forEach(tile => {
-            if (tile.id === 'JOKER') {
-                jokersAvailable++;
-            } else {
-                const tileId = tile.id === 'WD' ? 'SOAP' : tile.id;
-                playerCounts[tileId] = (playerCounts[tileId] || 0) + 1;
+            if (tile.id === 'JOKER') jokersAvailable++;
+            else if (tile.id === 'BLANK') blanksAvailable++;
+            else {
+                playerCounts[tile.id] = (playerCounts[tile.id] || 0) + 1;
             }
         });
 
@@ -68,13 +70,19 @@ export function findMissingTiles(playerHand, winningHand) {
         const missingTiles = [];
         for (const tileId in neededCounts) {
             const needed = neededCounts[tileId];
-            const playerHas = playerCounts[tileId] || 0;
+            let playerHas = playerCounts[tileId] || 0;
+            
+            if (tileId === 'SOAP' && playerCounts['WD']) {
+                playerHas += playerCounts['WD'];
+            }
 
             if (playerHas < needed) {
                 let stillMissing = needed - playerHas;
-                const jokersToUse = Math.min(stillMissing, jokersAvailable);
-                stillMissing -= jokersToUse;
-                jokersAvailable -= jokersToUse;
+                const canUseJokers = !winningHand.name.includes("Singles and Pairs");
+                let wildcardsToUse = blanksAvailable + (canUseJokers ? jokersAvailable : 0);
+                
+                const useCount = Math.min(stillMissing, wildcardsToUse);
+                stillMissing -= useCount;
 
                 for (let i = 0; i < stillMissing; i++) {
                     missingTiles.push({ id: tileId });

@@ -42,7 +42,7 @@ function Home({ onMenuToggle }) {
     const [receivedTiles, setReceivedTiles] = useState({});
     const [charlestonDecision, setCharlestonDecision] = useState({ action: 'continue', reason: '' });
     const [finalPassRecommendation, setFinalPassRecommendation] = useState({ count: 0, tiles: [] });
-    const [passCount, setPassCount] = useState(3); // How many tiles to get back
+    const [finalPassCount, setFinalPassCount] = useState(0);
     const [isBlindPassing, setIsBlindPassing] = useState(false);
     const [passFromHandCount, setPassFromHandCount] = useState(2);
 
@@ -136,11 +136,11 @@ function Home({ onMenuToggle }) {
         setReceivedTiles({});
         
         if (isBlindPassing) {
-            setPassCount(passFromHandCount);
+            setFinalPassCount(passFromHandCount);
         } else if (gamePhase === GAME_PHASES.FINAL_PASS) {
-            setPassCount(tilesToPass.length);
+            setFinalPassCount(tilesToPass.length);
         } else {
-            setPassCount(3);
+            setFinalPassCount(3);
         }
 
         setGamePhase(gamePhase === GAME_PHASES.FINAL_PASS ? GAME_PHASES.FINAL_GET : GAME_PHASES.CHARLESTON_GET);
@@ -152,7 +152,7 @@ function Home({ onMenuToggle }) {
         const totalReceived = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
         const currentCount = receivedTiles[tile.id] || 0;
 
-        if (action === 'increment' && totalReceived < passCount) {
+        if (action === 'increment' && totalReceived < finalPassCount) {
             setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
         }
         if (action === 'decrement' && currentCount > 0) {
@@ -242,12 +242,14 @@ function Home({ onMenuToggle }) {
                 </>
             )}
 
-            {gamePhase === GAME_PHASES.CHARLESTON_PASS && currentStep && (
+            {(gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.FINAL_PASS) && (
                  <>
-                    <PageHeader title={`Charleston: Pass 3 to the ${currentStep.direction}`} onMenuToggle={onMenuToggle} />
+                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && <PageHeader title={`Charleston: Pass to the ${currentStep.direction}`} onMenuToggle={onMenuToggle} />}
+                    {gamePhase === GAME_PHASES.FINAL_PASS && <PageHeader title={`Final Pass Across (up to 3 tiles)`} onMenuToggle={onMenuToggle} />}
+                    
                     <button onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
                     
-                    {isBlindPassing ? (
+                    {isBlindPassing && (
                         <div style={{padding: '10px 20px'}}>
                             <h4>Blind Pass Setup</h4>
                             <label htmlFor="blind-pass-select">How many tiles FROM YOUR HAND are you passing? </label>
@@ -258,7 +260,7 @@ function Home({ onMenuToggle }) {
                             </select>
                             <p>Now, select the <strong>{passFromHandCount}</strong> tiles from your hand to pass.</p>
                         </div>
-                    ) : null}
+                    )}
 
                     <Hand
                         hand={playerHand}
@@ -267,9 +269,16 @@ function Home({ onMenuToggle }) {
                         topHand={activeTopHand}
                     />
                     
-                    <button onClick={handleExchange} disabled={tilesToPass.length !== (isBlindPassing ? passFromHandCount : 3)}>
-                        {isBlindPassing ? 'Confirm Blind Pass' : 'Exchange'}
-                    </button>
+                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && (
+                         <button onClick={handleExchange} disabled={tilesToPass.length !== (isBlindPassing ? passFromHandCount : 3)}>
+                            {isBlindPassing ? 'Confirm Blind Pass' : 'Exchange'}
+                        </button>
+                    )}
+                     {gamePhase === GAME_PHASES.FINAL_PASS && (
+                        <button onClick={handleExchange}>
+                            Exchange
+                        </button>
+                    )}
 
                     {(charlestonPassIndex === 2 || charlestonPassIndex === 5) && (
                         <button onClick={() => {setIsBlindPassing(!isBlindPassing); setTilesToPass([]);}} style={{marginLeft: '10px'}}>
@@ -295,7 +304,7 @@ function Home({ onMenuToggle }) {
             
             {(gamePhase === GAME_PHASES.CHARLESTON_GET || gamePhase === GAME_PHASES.FINAL_GET) && (
                 <>
-                    <PageHeader title={`Select ${passCount} Tiles You Received`} onMenuToggle={onMenuToggle} />
+                    <PageHeader title={`Select ${finalPassCount} Tiles You Received`} onMenuToggle={onMenuToggle} />
                     <TileGrid 
                         onQuantityChange={handleSelectReceivedTile} 
                         selectedTiles={receivedTiles} 
@@ -303,25 +312,9 @@ function Home({ onMenuToggle }) {
                     />
                     <button 
                         onClick={handleConfirmReceived}
-                        disabled={totalReceivedCount !== passCount}
+                        disabled={totalReceivedCount !== finalPassCount}
                     >
                         Confirm Received Tiles
-                    </button>
-                </>
-            )}
-            
-            {gamePhase === GAME_PHASES.FINAL_PASS && (
-                <>
-                    <PageHeader title={`Final Pass Across (up to 3 tiles)`} onMenuToggle={onMenuToggle} />
-                    <button onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
-                    <Hand
-                        hand={playerHand}
-                        onTileClick={handleSelectTileToPass}
-                        selectedForAction={tilesToPass}
-                        topHand={activeTopHand}
-                    />
-                    <button onClick={handleExchange}>
-                        Exchange
                     </button>
                 </>
             )}
@@ -329,7 +322,7 @@ function Home({ onMenuToggle }) {
             {gamePhase === GAME_PHASES.GAME_STARTED && (
                  <>
                     <PageHeader title="Your Final Hand" onMenuToggle={onMenuToggle} />
-                    <Hand hand={playerHand} topHand={sortedHands[0]} />
+                    <Hand hand={playerHand} topHand={activeTopHand} />
                 </>
             )}
 
@@ -337,16 +330,17 @@ function Home({ onMenuToggle }) {
                 <div style={{ marginTop: '20px' }}>
                     <h2>Top Winning Hands:</h2>
                     {handsToShow.map((winningHand) => {
-                        const bestVariation = winningHand.variations[0];
                         const missing = findMissingTiles(handAsArray, winningHand);
                         const result = probabilities[winningHand.name] || { prob: 0, value: 0 };
-                        
                         const isTargeted = targetHand && targetHand.name === winningHand.name;
 
                         return (
                             <div 
                                 key={winningHand.name} 
-                                onClick={() => setTargetHand(winningHand)}
+                                onClick={() => {
+                                    setTargetHand(winningHand);
+                                    setTilesToPass([]);
+                                }}
                                 style={{ 
                                     marginBottom: '15px', 
                                     padding: '10px', 
@@ -361,7 +355,7 @@ function Home({ onMenuToggle }) {
                             >
                                 <HandDisplay 
                                     name={winningHand.name} 
-                                    variation={bestVariation} 
+                                    variation={winningHand.variations[0]} 
                                 />
                                 {winningHand.isConcealed && (
                                     <span className="concealed-tag">CONCEALED</span>

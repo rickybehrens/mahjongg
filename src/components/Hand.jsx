@@ -36,6 +36,7 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
     const playerTilesArray = handObjToArray(hand);
     const { sortedHand, junkTiles } = sortHandAndIdentifyJunk(playerTilesArray, topHand);
 
+    // --- THIS IS THE FIX ---
     // Calculate the number of keeper tiles. The sorter places them first.
     const keeperCount = sortedHand.length - junkTiles.length;
 
@@ -52,7 +53,8 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
                 // This correctly handles duplicates.
                 const isKeeper = index < keeperCount;
 
-                let border = '3px solid #c30000ff'; // Default for junk tiles (no margin)
+                // Using your custom border color for junk tiles
+                let border = '3px solid #c30000ff'; // Red for junk tiles
                 if (isKeeper) {
                     border = '3px solid #28a745'; // Green for keepers
                 }

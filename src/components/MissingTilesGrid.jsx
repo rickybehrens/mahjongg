@@ -24,15 +24,30 @@ function getTileImageKey(tileId) {
     return tileData.id;
 }
 
+// --- NEW: Helper to create a unique key for a set of tiles ---
+const getTileSetKey = (tileSet) => {
+    return tileSet.map(t => t.id).sort().join(',');
+};
+
 function MissingTilesGrid({ missingTiles }) {
-    // Check if all possible variations are complete
     if (!missingTiles || missingTiles.every(set => set.length === 0)) {
         return <div style={{ color: 'green', fontWeight: 'bold', marginLeft: '20px' }}>Complete!</div>;
     }
 
+    // --- NEW: De-duplicate the list of missing tile sets ---
+    const uniqueMissingTiles = [];
+    const seenKeys = new Set();
+    missingTiles.forEach(tileSet => {
+        const key = getTileSetKey(tileSet);
+        if (!seenKeys.has(key)) {
+            uniqueMissingTiles.push(tileSet);
+            seenKeys.add(key);
+        }
+    });
+
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '20px' }}>
-            {missingTiles.map((tileSet, setIndex) => (
+            {uniqueMissingTiles.map((tileSet, setIndex) => (
                 <React.Fragment key={setIndex}>
                     <div style={{ 
                         display: 'grid', 
@@ -50,8 +65,7 @@ function MissingTilesGrid({ missingTiles }) {
                             );
                         })}
                     </div>
-                    {/* Add an "OR" separator between the grids */}
-                    {setIndex < missingTiles.length - 1 && <span style={{fontWeight: 'bold'}}>OR</span>}
+                    {setIndex < uniqueMissingTiles.length - 1 && <span style={{fontWeight: 'bold'}}>OR</span>}
                 </React.Fragment>
             ))}
         </div>
