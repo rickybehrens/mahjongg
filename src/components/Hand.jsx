@@ -52,7 +52,7 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
                 // This correctly handles duplicates.
                 const isKeeper = index < keeperCount;
 
-                let border = '1px solid #ccc'; // Default for junk tiles (no margin)
+                let border = '3px solid #c30000ff'; // Default for junk tiles (no margin)
                 if (isKeeper) {
                     border = '3px solid #28a745'; // Green for keepers
                 }
