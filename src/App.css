@@ -4,69 +4,107 @@ body {
   font-family: sans-serif;
 }
 
-/* --- NEW: General Button Styles --- */
-button {
-    padding: 10px 20px; /* Makes the button bigger */
-    border-radius: 8px; /* Rounds the edges */
-    border: none;
-    background-color: #007bff; /* A nice blue color */
+/* --- NEW: Fixed Tile Counter --- */
+.tile-counter {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 80px;
+    height: 80px;
+    background-color: rgba(0, 123, 255, 0.9); /* Blue with some transparency */
     color: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 100; /* Ensures it stays on top */
+}
+
+/* --- General Button Styles --- */
+button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-    margin: 10px; /* Adds some space around the buttons */
+    transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+    margin: 10px;
 }
 
 button:hover {
-    background-color: #0056b3; /* A darker blue on hover */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* --- NEW: Button Color Classes --- */
+.btn-confirm {
+    background-color: #28a745; /* Green */
+    color: white;
+}
+.btn-confirm:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+.btn-neutral {
+    background-color: #007bff; /* Blue */
+    color: white;
+}
+.btn-neutral:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.btn-cancel {
+    background-color: #dc3545; /* Red */
+    color: white;
+}
+.btn-cancel:hover:not(:disabled) {
+    background-color: #c82333;
 }
 
 
+/* --- Settings and Grid Styles --- */
 .settings-container, .dealer-toggle {
     padding: 0 20px;
 }
-
-/* --- NEW Vertical Block & Responsive Tile Row Styles --- */
 .tile-grid-container {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Space between each suit block */
+    gap: 20px;
 }
-
 .suit-block {
     padding: 15px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background-color: #daebfd;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-
 .suit-block h3 {
     margin-top: 0;
-    margin-bottom: 15px; /* Space between title and tiles */
+    margin-bottom: 15px;
     font-size: 18px;
     color: #4a5568;
     border-bottom: 1px solid #eee;
     padding-bottom: 5px;
 }
-
 .tile-container {
-    display: flex;       /* This makes the tiles go in a row */
-    flex-wrap: wrap;     /* This makes them wrap to the next line on small screens */
-    gap: 8px;            /* Space between individual tiles */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
-
 
 /* --- LARGER Tile Styles --- */
 .tile {
-    /* Increased width and height for a ~20% area increase */
     width: 65px;
     height: 91px;
     border: 2px solid #ccc;
@@ -74,13 +112,11 @@ button:disabled {
     transition: all 0.2s ease-in-out;
     position: relative;
 }
-
 .tile img {
     width: 100%;
     height: 100%;
     display: block;
 }
-
 .tile.selected {
     border-color: #007bff;
     transform: scale(1.05);
@@ -96,7 +132,6 @@ button:disabled {
     height: 22px;
     background-color: rgba(255, 255, 255, 0.85);
 }
-
 .quantity-display {
     flex: 1;
     text-align: center;
@@ -105,7 +140,6 @@ button:disabled {
     line-height: 22px;
     background-color: #f0f0f0;
 }
-
 .quantity-controls button {
     flex: 1;
     border: none;
@@ -113,18 +147,16 @@ button:disabled {
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
-    /* --- FIX: Overriding the general button styles --- */
     padding: 0;
     margin: 0;
     border-radius: 0;
-    color: #333; /* Set a color for the + and - symbols */
+    color: #333;
 }
-
 .quantity-controls button:hover {
     background-color: #ccc;
 }
 
-/* --- Style for the Concealed Tag --- */
+/* --- Concealed Tag --- */
 .concealed-tag {
     margin-left: 15px;
     padding: 3px 10px;
@@ -143,36 +175,30 @@ button:disabled {
   position: fixed;
   z-index: 1000;
   top: 0;
-  left: -250px; /* Start off-screen */
+  left: -250px;
   background: linear-gradient(to right, rgb(0, 200, 255) , rgb(0, 13, 255));
   padding-top: 60px;
   transition: 0.3s;
   color: white;
 }
-
 .side-menu.open {
-  left: 0; /* Slide in */
+  left: 0;
 }
-
 .side-menu h2 {
   padding: 0 16px;
 }
-
 .side-menu ul {
   list-style-type: none;
   padding: 0;
 }
-
 .side-menu li {
   padding: 8px 16px;
   cursor: pointer;
   transition: 0.2s;
 }
-
 .side-menu li:hover {
   background-color: #575757;
 }
-
 .side-menu-overlay {
   position: fixed;
   top: 0;
@@ -182,13 +208,11 @@ button:disabled {
   background-color: rgba(0,0,0,0.5);
   z-index: 999;
 }
-
 .main-content {
   transition: margin-left 0.3s;
 }
-
 .main-content.menu-open {
-  margin-left: 250px; /* Push content over when menu is open */
+  margin-left: 250px;
 }
 
 /* --- Header and Menu Button --- */
@@ -198,18 +222,24 @@ button:disabled {
   align-items: center;
   padding: 10px 20px;
 }
-
+.page-title {
+    flex-grow: 1;
+    text-align: center;
+}
 .menu-button {
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
-  width: 40px; /* Set a specific size */
+  width: 40px;
   height: 40px;
-  margin: 0; /* Override general button margin */
+  margin: 0;
 }
-
 .menu-button img {
     width: 100%;
     height: 100%;
+}
+.page-logo {
+    height: 80px;
+    width: auto;
 }

@@ -3,25 +3,31 @@ import React from 'react';
 import Tile from './Tile';
 import gridData from '../data/gridStructure';
 
-function TileGrid({ onQuantityChange, selectedTiles, blankCount }) {
+// The TileGrid now accepts availableQuantities to enforce limits.
+function TileGrid({ onQuantityChange, selectedTiles, blankCount, availableQuantities }) {
     const renderTile = (tile) => {
         if (!tile) return null;
+
+        // Determine the maximum selectable quantity for this tile.
+        // If availableQuantities is not provided (like for initial selection), use the tile's default max.
+        const maxSelectable = availableQuantities 
+            ? availableQuantities[tile.id] || 0 
+            : tile.maxQuantity;
+
         return (
             <Tile
                 key={tile.id}
                 tile={tile}
                 quantity={selectedTiles[tile.id] || 0}
                 onQuantityChange={onQuantityChange}
+                // Pass the calculated max quantity to the Tile component
+                maxSelectable={maxSelectable}
             />
         );
     };
 
     return (
         <div className="tile-grid-container">
-            {/* Each suit is now wrapped in a "suit-block".
-              The <h3> title is a block-level element, so it naturally sits on its own line
-              above the "tile-container" div that holds the actual tiles.
-            */}
             <div className="suit-block">
                 <h3>Dots</h3>
                 <div className="tile-container">

@@ -22,8 +22,12 @@ const GAME_PHASES = {
 };
 
 const charlestonSteps = [
-    { direction: 'Right', pass: 1 }, { direction: 'Across', pass: 2 }, { direction: 'Left', pass: 3 },
-    { direction: 'Left', pass: 4 }, { direction: 'Across', pass: 5 }, { direction: 'Right', pass: 6 },
+    { title: '1st Pass to the Right', pass: 1 },
+    { title: '1st Pass Across', pass: 2 },
+    { title: '1st Pass to the Left (blind)', pass: 3 },
+    { title: '2nd Pass to the Left', pass: 4 },
+    { title: '2nd Pass Across', pass: 5 },
+    { title: '2nd Pass to the Right (blind)', pass: 6 },
 ];
 
 function Home({ onMenuToggle }) {
@@ -42,7 +46,7 @@ function Home({ onMenuToggle }) {
     const [receivedTiles, setReceivedTiles] = useState({});
     const [charlestonDecision, setCharlestonDecision] = useState({ action: 'continue', reason: '' });
     const [finalPassRecommendation, setFinalPassRecommendation] = useState({ count: 0, tiles: [] });
-    const [finalPassCount, setFinalPassCount] = useState(0);
+    const [passCount, setPassCount] = useState(3);
     const [isBlindPassing, setIsBlindPassing] = useState(false);
     const [passFromHandCount, setPassFromHandCount] = useState(2);
 
@@ -54,6 +58,24 @@ function Home({ onMenuToggle }) {
             return tileData ? Array(quantity).fill(tileData) : [];
         });
     }, [playerHand]);
+
+    const fullDeckCounts = useMemo(() => {
+        const deck = {};
+        tiles.forEach(tile => {
+            if (tile.id === 'JOKER') deck[tile.id] = jokerCount;
+            else if (tile.id === 'BLANK') deck[tile.id] = blankCount;
+            else deck[tile.id] = tile.maxQuantity;
+        });
+        return deck;
+    }, [jokerCount, blankCount]);
+
+    const remainingDeckCounts = useMemo(() => {
+        const remaining = { ...fullDeckCounts };
+        for (const tileId in playerHand) {
+            remaining[tileId] = (remaining[tileId] || 0) - playerHand[tileId];
+        }
+        return remaining;
+    }, [playerHand, fullDeckCounts]);
 
     useEffect(() => {
         if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED) return;
@@ -135,12 +157,23 @@ function Home({ onMenuToggle }) {
         setPlayerHand(newHand);
         setReceivedTiles({});
         
+        let receivedCount = 3;
         if (isBlindPassing) {
-            setFinalPassCount(passFromHandCount);
+            receivedCount = passFromHandCount;
         } else if (gamePhase === GAME_PHASES.FINAL_PASS) {
-            setFinalPassCount(tilesToPass.length);
-        } else {
-            setFinalPassCount(3);
+            receivedCount = tilesToPass.length;
+        }
+        setPassCount(receivedCount);
+
+        if (receivedCount === 0) {
+            setIsBlindPassing(false);
+            setTilesToPass([]);
+            if (gamePhase === GAME_PHASES.FINAL_PASS) {
+                setGamePhase(GAME_PHASES.GAME_STARTED);
+            } else {
+                handleConfirmReceived();
+            }
+            return;
         }
 
         setGamePhase(gamePhase === GAME_PHASES.FINAL_PASS ? GAME_PHASES.FINAL_GET : GAME_PHASES.CHARLESTON_GET);
@@ -152,8 +185,11 @@ function Home({ onMenuToggle }) {
         const totalReceived = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
         const currentCount = receivedTiles[tile.id] || 0;
 
-        if (action === 'increment' && totalReceived < finalPassCount) {
-            setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
+        if (action === 'increment' && totalReceived < passCount) {
+            const availableCount = remainingDeckCounts[tile.id] || 0;
+            if (currentCount < availableCount) {
+                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
+            }
         }
         if (action === 'decrement' && currentCount > 0) {
             const newCount = currentCount - 1;
@@ -208,7 +244,12 @@ function Home({ onMenuToggle }) {
         <div>
             {gamePhase === GAME_PHASES.INITIAL_SELECTION && (
                 <>
-                    <PageHeader title={`Select Your ${maxHandSize} Tiles (${totalTileCount} / ${maxHandSize})`} onMenuToggle={onMenuToggle} />
+                    <PageHeader title="Select Your Tiles" onMenuToggle={onMenuToggle} />
+                    {totalTileCount > 0 && (
+                        <div className="tile-counter">
+                            {totalTileCount} / {maxHandSize}
+                        </div>
+                    )}
                     <div className="settings-container" style={{ margin: '10px 20px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <div>
                             <label htmlFor="year-select">Card Year: </label>
@@ -236,7 +277,7 @@ function Home({ onMenuToggle }) {
                         </div>
                     </div>
                     <TileGrid onQuantityChange={handleQuantityChange} selectedTiles={playerHand} blankCount={blankCount} />
-                    <button onClick={startCharleston} disabled={totalTileCount !== maxHandSize}>
+                    <button className="btn-confirm" onClick={startCharleston} disabled={totalTileCount !== maxHandSize}>
                         Confirm Hand & Start Charleston
                     </button>
                 </>
@@ -244,10 +285,8 @@ function Home({ onMenuToggle }) {
 
             {(gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.FINAL_PASS) && (
                  <>
-                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && <PageHeader title={`Charleston: Pass to the ${currentStep.direction}`} onMenuToggle={onMenuToggle} />}
-                    {gamePhase === GAME_PHASES.FINAL_PASS && <PageHeader title={`Final Pass Across (up to 3 tiles)`} onMenuToggle={onMenuToggle} />}
-                    
-                    <button onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
+                    <PageHeader title={currentStep.title} onMenuToggle={onMenuToggle} />
+                    <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
                     
                     {isBlindPassing && (
                         <div style={{padding: '10px 20px'}}>
@@ -270,18 +309,18 @@ function Home({ onMenuToggle }) {
                     />
                     
                     {gamePhase === GAME_PHASES.CHARLESTON_PASS && (
-                         <button onClick={handleExchange} disabled={tilesToPass.length !== (isBlindPassing ? passFromHandCount : 3)}>
+                         <button className="btn-confirm" onClick={handleExchange} disabled={tilesToPass.length !== (isBlindPassing ? passFromHandCount : 3)}>
                             {isBlindPassing ? 'Confirm Blind Pass' : 'Exchange'}
                         </button>
                     )}
                      {gamePhase === GAME_PHASES.FINAL_PASS && (
-                        <button onClick={handleExchange}>
+                        <button className="btn-confirm" onClick={handleExchange}>
                             Exchange
                         </button>
                     )}
 
                     {(charlestonPassIndex === 2 || charlestonPassIndex === 5) && (
-                        <button onClick={() => {setIsBlindPassing(!isBlindPassing); setTilesToPass([]);}} style={{marginLeft: '10px'}}>
+                        <button className={isBlindPassing ? 'btn-cancel' : 'btn-neutral'} onClick={() => {setIsBlindPassing(!isBlindPassing); setTilesToPass([]);}} style={{marginLeft: '10px'}}>
                             {isBlindPassing ? 'Cancel Blind Pass' : 'Blind Pass'}
                         </button>
                     )}
@@ -291,28 +330,30 @@ function Home({ onMenuToggle }) {
             {gamePhase === GAME_PHASES.CHARLESTON_DECISION && (
                 <>
                     <PageHeader title="Charleston Decision" onMenuToggle={onMenuToggle} />
-                     <button onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
+                     <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
                     <Hand hand={playerHand} topHand={activeTopHand} />
                     <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
                         <h3>Recommendation: <span style={{ color: charlestonDecision.action === 'skip' ? 'red' : 'green' }}>{charlestonDecision.action.toUpperCase()}</span></h3>
                         <p>{charlestonDecision.reason}</p>
-                        <button onClick={continueCharleston}>Continue to Second Charleston</button>
-                        <button onClick={skipSecondCharleston} style={{ marginLeft: '10px' }}>Skip Second Charleston</button>
+                        <button className="btn-confirm" onClick={continueCharleston}>Continue to Second Charleston</button>
+                        <button className="btn-cancel" onClick={skipSecondCharleston} style={{ marginLeft: '10px' }}>Skip Second Charleston</button>
                     </div>
                 </>
             )}
             
             {(gamePhase === GAME_PHASES.CHARLESTON_GET || gamePhase === GAME_PHASES.FINAL_GET) && (
                 <>
-                    <PageHeader title={`Select ${finalPassCount} Tiles You Received`} onMenuToggle={onMenuToggle} />
+                    <PageHeader title={`Select ${passCount} Tiles You Received`} onMenuToggle={onMenuToggle} />
                     <TileGrid 
                         onQuantityChange={handleSelectReceivedTile} 
                         selectedTiles={receivedTiles} 
                         blankCount={blankCount}
+                        availableQuantities={remainingDeckCounts}
                     />
                     <button 
+                        className="btn-confirm"
                         onClick={handleConfirmReceived}
-                        disabled={totalReceivedCount !== finalPassCount}
+                        disabled={totalReceivedCount !== passCount}
                     >
                         Confirm Received Tiles
                     </button>
@@ -332,6 +373,7 @@ function Home({ onMenuToggle }) {
                     {handsToShow.map((winningHand) => {
                         const missing = findMissingTiles(handAsArray, winningHand);
                         const result = probabilities[winningHand.name] || { prob: 0, value: 0 };
+                        
                         const isTargeted = targetHand && targetHand.name === winningHand.name;
 
                         return (

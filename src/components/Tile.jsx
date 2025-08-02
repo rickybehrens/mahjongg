@@ -19,10 +19,13 @@ function getTileImageKey(tile) {
     return tile.id;
 }
 
-function Tile({ tile, quantity, onQuantityChange }) {
+function Tile({ tile, quantity, onQuantityChange, maxSelectable }) {
     const imageKey = getTileImageKey(tile);
     const imagePath = tileImageMap[imageKey];
     const tileClassName = `tile ${quantity > 0 ? 'selected' : ''}`;
+
+    // The button is now disabled if the quantity has reached the maximum allowed.
+    const isIncrementDisabled = quantity >= maxSelectable;
 
     return (
         <div className={tileClassName}>
@@ -30,7 +33,12 @@ function Tile({ tile, quantity, onQuantityChange }) {
             <div className="quantity-controls">
                 <button onClick={() => onQuantityChange(tile, 'decrement')}>-</button>
                 <span className="quantity-display">{quantity}</span>
-                <button onClick={() => onQuantityChange(tile, 'increment')}>+</button>
+                <button 
+                    onClick={() => onQuantityChange(tile, 'increment')}
+                    disabled={isIncrementDisabled}
+                >
+                    +
+                </button>
             </div>
         </div>
     );
