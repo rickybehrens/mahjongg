@@ -41,6 +41,7 @@ function About({ onMenuToggle }) {
         <ul>
             <li><strong>Passing Tiles:</strong> For each pass, select three tiles to give away (the tiles without margins are your best bets).</li>
             <li><strong>Receiving Tiles:</strong> After you pass, select the three new tiles you received from another player. Your hand and the list of potential hands will automatically update.</li>
+            <li><strong>Blind Pass:</strong> For the last pass on each Charleston (the first left and the final right), a player can do a blind pass if the player does not have three unwanted tiles to pass. In the blind pass, the player can take one, two or three of the tiles received and include them in the player’s own pass without ever seeing them.</li>
             <li><strong>To Continue or To Stop?</strong> After the first Charleston is complete, the app will analyze your improved hand and give you a strategic recommendation: Continue with the second Charleston or Stop.</li>
             <li><strong>The Final Pass:</strong> If you choose to stop, or after the second Charleston is complete, the app will guide you through the final courtesy pass with the player across from you.</li>
         </ul>

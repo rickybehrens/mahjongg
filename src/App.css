@@ -4,6 +4,30 @@ body {
   font-family: sans-serif;
 }
 
+/* --- NEW: General Button Styles --- */
+button {
+    padding: 10px 20px; /* Makes the button bigger */
+    border-radius: 8px; /* Rounds the edges */
+    border: none;
+    background-color: #007bff; /* A nice blue color */
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    margin: 10px; /* Adds some space around the buttons */
+}
+
+button:hover {
+    background-color: #0056b3; /* A darker blue on hover */
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+
 .settings-container, .dealer-toggle {
     padding: 0 20px;
 }
@@ -89,7 +113,11 @@ body {
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
+    /* --- FIX: Overriding the general button styles --- */
     padding: 0;
+    margin: 0;
+    border-radius: 0;
+    color: #333; /* Set a color for the + and - symbols */
 }
 
 .quantity-controls button:hover {
@@ -178,6 +206,7 @@ body {
   padding: 0;
   width: 40px; /* Set a specific size */
   height: 40px;
+  margin: 0; /* Override general button margin */
 }
 
 .menu-button img {
