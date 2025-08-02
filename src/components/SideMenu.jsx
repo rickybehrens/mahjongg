@@ -17,7 +17,7 @@ function SideMenu({ isOpen, onPageSelect, onClose }) {
         <ul>
           <li onClick={() => handleSelect('home')}>Home</li>
           <li onClick={() => handleSelect('rules')}>Rules</li>
-          <li onClick={() => handleSelect('about')}>About</li>
+          <li onClick={() => handleSelect('about')}>About This App</li>
           <li onClick={() => handleSelect('contact')}>Contact Me</li>
         </ul>
       </div>

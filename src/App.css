@@ -116,7 +116,7 @@ body {
   z-index: 1000;
   top: 0;
   left: -250px; /* Start off-screen */
-  background-color: #111;
+  background: linear-gradient(to right, rgb(0, 200, 255) , rgb(0, 13, 255));
   padding-top: 60px;
   transition: 0.3s;
   color: white;
