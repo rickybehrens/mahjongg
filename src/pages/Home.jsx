@@ -59,6 +59,7 @@ function Home({ onMenuToggle }) {
         });
     }, [playerHand]);
 
+    // --- FIX: Restored logic for tracking available tiles ---
     const fullDeckCounts = useMemo(() => {
         const deck = {};
         tiles.forEach(tile => {
