@@ -59,7 +59,6 @@ function Home({ onMenuToggle }) {
         });
     }, [playerHand]);
 
-    // --- FIX: Restored logic for tracking available tiles ---
     const fullDeckCounts = useMemo(() => {
         const deck = {};
         tiles.forEach(tile => {
@@ -141,7 +140,12 @@ function Home({ onMenuToggle }) {
     const handleSelectTileToPass = (instanceKey) => {
         setTilesToPass(prev => {
             if (prev.includes(instanceKey)) return prev.filter(key => key !== instanceKey);
-            const limit = isBlindPassing ? passFromHandCount : 3;
+            
+            // FIX: Allow up to 3 tiles for final pass, otherwise use limit
+            const limit = gamePhase === GAME_PHASES.FINAL_PASS
+                ? 3
+                : isBlindPassing ? passFromHandCount : 3;
+
             if (prev.length < limit) return [...prev, instanceKey];
             return prev;
         });
@@ -158,11 +162,13 @@ function Home({ onMenuToggle }) {
         setPlayerHand(newHand);
         setReceivedTiles({});
         
-        let receivedCount = 3;
-        if (isBlindPassing) {
-            receivedCount = passFromHandCount;
-        } else if (gamePhase === GAME_PHASES.FINAL_PASS) {
+        let receivedCount;
+        if (gamePhase === GAME_PHASES.FINAL_PASS) {
             receivedCount = tilesToPass.length;
+        } else if (isBlindPassing) {
+            receivedCount = passFromHandCount;
+        } else {
+            receivedCount = 3;
         }
         setPassCount(receivedCount);
 
@@ -215,7 +221,9 @@ function Home({ onMenuToggle }) {
             setCharlestonPassIndex(prev => prev + 1);
             setGamePhase(GAME_PHASES.CHARLESTON_DECISION);
         } else if (charlestonPassIndex === 5) {
+            // FIX: Transition to FINAL_PASS correctly
             setGamePhase(GAME_PHASES.FINAL_PASS);
+            setIsBlindPassing(false); // Ensure blind pass is off
         } else {
             setCharlestonPassIndex(prev => prev + 1);
             setGamePhase(GAME_PHASES.CHARLESTON_PASS);
@@ -223,10 +231,14 @@ function Home({ onMenuToggle }) {
     };
     
     const continueCharleston = () => setGamePhase(GAME_PHASES.CHARLESTON_PASS);
-    const skipSecondCharleston = () => setGamePhase(GAME_PHASES.FINAL_PASS);
+    
+    // FIX: Transition to FINAL_PASS correctly when skipping
+    const skipSecondCharleston = () => {
+        setGamePhase(GAME_PHASES.FINAL_PASS);
+        setIsBlindPassing(false); // Ensure blind pass is off
+    };
 
     const totalReceivedCount = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
-    const currentStep = charlestonSteps[charlestonPassIndex];
 
     const handsToShow = useMemo(() => {
         let hands = [...sortedHands];
@@ -241,6 +253,15 @@ function Home({ onMenuToggle }) {
         return cutOffIndex === -1 ? hands : hands.slice(0, cutOffIndex);
     }, [sortedHands, targetHand]);
 
+    // --- FIX: Logic to determine correct page title and button text ---
+    const pageTitle = gamePhase === GAME_PHASES.FINAL_PASS
+        ? 'Final Pass Across'
+        : charlestonSteps[charlestonPassIndex]?.title || 'Charleston';
+
+    const numberWords = ['None', 'One', 'Two', 'Three'];
+    const finalPassButtonText = `Exchange ${numberWords[tilesToPass.length] || tilesToPass.length}`;
+    // --- End of FIX ---
+
     return (
         <div>
             {gamePhase === GAME_PHASES.INITIAL_SELECTION && (
@@ -252,6 +273,7 @@ function Home({ onMenuToggle }) {
                         </div>
                     )}
                     <div className="settings-container" style={{ margin: '10px 20px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Settings controls... */}
                         <div>
                             <label htmlFor="year-select">Card Year: </label>
                             <select id="year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
@@ -286,7 +308,8 @@ function Home({ onMenuToggle }) {
 
             {(gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.FINAL_PASS) && (
                  <>
-                    <PageHeader title={currentStep.title} onMenuToggle={onMenuToggle} />
+                    {/* FIX: Use the dynamic pageTitle variable */}
+                    <PageHeader title={pageTitle} onMenuToggle={onMenuToggle} />
                     <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
                     
                     {isBlindPassing && (
@@ -314,13 +337,16 @@ function Home({ onMenuToggle }) {
                             {isBlindPassing ? 'Confirm Blind Pass' : 'Exchange'}
                         </button>
                     )}
+                    
+                    {/* FIX: Implement dynamic button text for the final pass */}
                      {gamePhase === GAME_PHASES.FINAL_PASS && (
-                        <button className="btn-confirm" onClick={handleExchange}>
-                            Exchange
+                        <button className="btn-confirm" onClick={handleExchange} disabled={tilesToPass.length > 3}>
+                            {finalPassButtonText}
                         </button>
                     )}
 
-                    {(charlestonPassIndex === 2 || charlestonPassIndex === 5) && (
+                    {/* FIX: Blind pass option should not show during Final Pass */}
+                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && (charlestonPassIndex === 2 || charlestonPassIndex === 5) && (
                         <button className={isBlindPassing ? 'btn-cancel' : 'btn-neutral'} onClick={() => {setIsBlindPassing(!isBlindPassing); setTilesToPass([]);}} style={{marginLeft: '10px'}}>
                             {isBlindPassing ? 'Cancel Blind Pass' : 'Blind Pass'}
                         </button>
