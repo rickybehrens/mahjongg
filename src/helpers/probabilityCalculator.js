@@ -45,6 +45,8 @@ function calculateProbabilities(playerHand, winningHands) {
     winningHands.forEach(winningHand => {
         let bestProb = 0;
         let bestValue = 0;
+        // FIX 1: Keep track of the best variation itself.
+        let bestVariation = null;
 
         if (winningHand.variations && winningHand.variations.length > 0) {
             winningHand.variations.forEach(variation => {
@@ -96,11 +98,12 @@ function calculateProbabilities(playerHand, winningHands) {
                 const handValue = winningHand.value || 25;
                 const strategicValue = completionScore * handValue * jokerlessBonus;
                 
-                if (completionScore > bestProb) {
-                    bestProb = completionScore;
-                }
+                // This logic is now combined to link the best value to its variation.
                 if (strategicValue > bestValue) {
                     bestValue = strategicValue;
+                    bestProb = completionScore;
+                    // FIX 2: When a better value is found, save its variation.
+                    bestVariation = variation;
                 }
             });
         }
@@ -108,6 +111,8 @@ function calculateProbabilities(playerHand, winningHands) {
         results[winningHand.name] = {
             prob: bestProb,
             value: bestValue,
+            // FIX 3: Return the best variation found.
+            bestVariation: bestVariation
         };
     });
 

@@ -3,8 +3,8 @@ import React from 'react';
 import Tile from './Tile';
 import gridData from '../data/gridStructure';
 
-// The TileGrid now accepts availableQuantities to enforce limits.
-function TileGrid({ onQuantityChange, selectedTiles, blankCount, availableQuantities }) {
+// The TileGrid now accepts onTileImageClick and passes it down.
+function TileGrid({ onQuantityChange, onTileImageClick, selectedTiles, blankCount, availableQuantities }) {
     const renderTile = (tile) => {
         if (!tile) return null;
 
@@ -20,7 +20,7 @@ function TileGrid({ onQuantityChange, selectedTiles, blankCount, availableQuanti
                 tile={tile}
                 quantity={selectedTiles[tile.id] || 0}
                 onQuantityChange={onQuantityChange}
-                // Pass the calculated max quantity to the Tile component
+                onTileImageClick={onTileImageClick} // Pass the new prop down to the Tile component
                 maxSelectable={maxSelectable}
             />
         );

@@ -21,7 +21,6 @@ function getPermutations(arr, k) {
     return result;
 }
 
-// This buildVariation function is from your original code. It is correct.
 function buildVariation(pattern, p) {
     const tiles = [];
     pattern.forEach(part => {
@@ -39,7 +38,12 @@ function buildVariation(pattern, p) {
                 ['2', 'SOAP', '2', '4'].forEach(t => {
                     tiles.push({ id: t === 'SOAP' ? 'SOAP' : `${t}${suit}` })
                 });
-            } else if (suit) {
+            } else if (/^[1-9]+$/.test(String(tile))) { 
+                 for(const char of String(tile)) {
+                    tiles.push({ id: `${char}${suit}`});
+                 }
+            }
+            else if (suit) {
                 tiles.push({ id: `${tile}${suit}` });
             } else {
                 tiles.push({ id: tile });
