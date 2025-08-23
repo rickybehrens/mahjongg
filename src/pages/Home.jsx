@@ -161,25 +161,8 @@ function Home({ onMenuToggle }) {
         }
     };
 
-    const handleSelectReceivedTile = (tile, action) => {
-        const totalReceived = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
-        const currentCount = receivedTiles[tile.id] || 0;
-
-        if (action === 'increment' && totalReceived < passCount) {
-            const availableCount = remainingDeckCounts[tile.id] || 0;
-            if (currentCount < availableCount) {
-                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
-            }
-        }
-        if (action === 'decrement' && currentCount > 0) {
-            const newCount = currentCount - 1;
-            const newReceived = { ...receivedTiles };
-            if (newCount === 0) delete newReceived[tile.id];
-            else newReceived[tile.id] = newCount;
-            setReceivedTiles(newReceived);
-        }
-    };
-    
+    // --- THIS IS THE CORRECTED FUNCTION ---
+    // It now calls the correct handler based on the current game phase.
     const handleTileImageClick = (tile) => {
         if (gamePhase === GAME_PHASES.INITIAL_SELECTION) {
             handleQuantityChange(tile, 'increment');
@@ -272,6 +255,25 @@ function Home({ onMenuToggle }) {
         setGamePhase(gamePhase === GAME_PHASES.FINAL_PASS ? GAME_PHASES.FINAL_GET : GAME_PHASES.CHARLESTON_GET);
         setTilesToPass([]);
         setIsBlindPassing(false);
+    };
+
+    const handleSelectReceivedTile = (tile, action) => {
+        const totalReceived = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
+        const currentCount = receivedTiles[tile.id] || 0;
+
+        if (action === 'increment' && totalReceived < passCount) {
+            const availableCount = remainingDeckCounts[tile.id] || 0;
+            if (currentCount < availableCount) {
+                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
+            }
+        }
+        if (action === 'decrement' && currentCount > 0) {
+            const newCount = currentCount - 1;
+            const newReceived = { ...receivedTiles };
+            if (newCount === 0) delete newReceived[tile.id];
+            else newReceived[tile.id] = newCount;
+            setReceivedTiles(newReceived);
+        }
     };
 
     const handleConfirmReceived = () => {

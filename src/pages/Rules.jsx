@@ -161,13 +161,13 @@ function Rules({ onMenuToggle }) {
                 <a href="#top">Return to top</a>
 
                 <h2 id="score">The Score</h2>
-                <p>The card has a value for each hand next to the “X” or “C”.</p>
+                <p>The card has a value for each hand next to the "<strong style={{ color: 'red' }}>X</strong>" or "<strong style={{ color: 'blue' }}>C</strong>".</p>
                 <p>For basic scoring, the winner receives the value indicated on the NMJL card.</p>
                 <p>Advanced scoring rules include:</p>
                 <ol>
                     <li>The player who discarded a tile from which another player declares Mah Jongg must pay twice the value, while the other players pay only the value noted on the card.</li>
                     <li>If the final tile is drawn from the wall, players pay the winner twice the value.</li>
-                    <li>If the winning hand does not contain jokers, players pay the winner double the value.</li>
+                    <li>If the winning hand does not contain jokers, all players pay the winner double the value. This applies to all hands except those found in the <strong style={{ color: 'darkred' }}>SINGLES AND PAIRS</strong> section (the value of these hands is already higher because they cannot be made with jokers).</li>
                 </ol>
                 <a href="#top">Return to top</a>
 
