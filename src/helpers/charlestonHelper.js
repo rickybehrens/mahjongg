@@ -1,4 +1,6 @@
 // src/helpers/charlestonHelper.js
+import calculateProbabilities from './probabilityCalculator';
+import tiles from '../data/tiles';
 
 /**
  * Decides whether to continue or skip the second Charleston.
@@ -40,24 +42,31 @@ export function recommendFinalPass(playerHand, sortedHands) {
     }
 
     const topHand = sortedHands[0];
-    if (!topHand || !topHand.variations || topHand.variations.length === 0) {
+    // FIX: Use the bestVariation object for accuracy.
+    if (!topHand || !topHand.bestVariation || !topHand.bestVariation.tiles) {
         return { count: 0, tiles: [] };
     }
 
     const neededChecklist = {};
-    topHand.variations[0].tiles.forEach(tile => {
+    topHand.bestVariation.tiles.forEach(tile => {
         const tileId = tile.id === 'SOAP' ? 'WD' : tile.id;
         neededChecklist[tileId] = (neededChecklist[tileId] || 0) + 1;
     });
 
     const junkTiles = [];
-    playerHand.forEach(tile => {
+    // Create a temporary hand array with unique instance keys for each tile
+    const handWithKeys = playerHand.map((tile, index) => {
+        // Create a unique key to differentiate identical tiles
+        return { ...tile, instanceKey: `${tile.id}-${index}` };
+    });
+
+    handWithKeys.forEach(tile => {
         if (tile.id === 'JOKER') return;
         
         if (neededChecklist[tile.id] && neededChecklist[tile.id] > 0) {
             neededChecklist[tile.id]--;
         } else {
-            junkTiles.push(tile.id);
+            junkTiles.push(tile);
         }
     });
 
@@ -65,6 +74,59 @@ export function recommendFinalPass(playerHand, sortedHands) {
 
     return {
         count: tilesToPass.length,
-        tiles: tilesToPass,
+        tiles: tilesToPass.map(t => t.instanceKey),
     };
+}
+
+
+/**
+ * Analyzes a pool of tiles and selects the best ones to keep for an optimal hand.
+ */
+export function cherryPickTiles(currentHand, incomingTiles, handSize, winningHands, gameSettings) {
+    const combinedTiles = [...currentHand, ...incomingTiles];
+    
+    let bestHand = combinedTiles.slice(0, handSize);
+    let bestValue = 0;
+
+    // This is a simplified combination generator. For very large pools, a more optimized algorithm would be needed.
+    function findCombinations(arr, k) {
+        if (k > arr.length || k <= 0) {
+            return [[]];
+        }
+        if (k === arr.length) {
+            return [arr];
+        }
+        if (k === 1) {
+            return arr.map(item => [item]);
+        }
+        const combs = [];
+        for (let i = 0; i < arr.length - k + 1; i++) {
+            const head = arr.slice(i, i + 1);
+            const tailcombs = findCombinations(arr.slice(i + 1), k - 1);
+            for (let j = 0; j < tailcombs.length; j++) {
+                combs.push(head.concat(tailcombs[j]));
+            }
+        }
+        return combs;
+    }
+
+    const possibleHands = findCombinations(combinedTiles, handSize);
+
+    possibleHands.forEach(hand => {
+        const results = calculateProbabilities(hand, winningHands, gameSettings);
+        const topValue = Object.values(results).reduce((max, current) => Math.max(max, current.value), 0);
+        
+        if (topValue > bestValue) {
+            bestValue = topValue;
+            bestHand = hand;
+        }
+    });
+
+    // Convert the winning array of tiles back into the object format used for state
+    const newHandObject = {};
+    bestHand.forEach(tile => {
+        newHandObject[tile.id] = (newHandObject[tile.id] || 0) + 1;
+    });
+
+    return newHandObject;
 }

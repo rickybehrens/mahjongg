@@ -3,13 +3,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/PageHeader';
 import TileGrid from '../components/TileGrid';
 import Hand from '../components/Hand';
-import { getCharlestonRecommendation, recommendFinalPass } from '../helpers/charlestonHelper';
+import { getCharlestonRecommendation, recommendFinalPass, cherryPickTiles } from '../helpers/charlestonHelper';
 import { winningHandsData, availableYears } from '../data/winningHands';
 import tiles from '../data/tiles';
 import HandDisplay from '../components/HandDisplay';
 import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
+import RevealScreen from '../components/RevealScreen';
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -19,6 +20,7 @@ const GAME_PHASES = {
     FINAL_PASS: 'FINAL_PASS',
     FINAL_GET: 'FINAL_GET',
     GAME_STARTED: 'GAME_STARTED',
+    REVEAL: 'REVEAL',
 };
 
 const charlestonSteps = [
@@ -50,6 +52,11 @@ function Home({ onMenuToggle }) {
     const [isBlindPassing, setIsBlindPassing] = useState(false);
     const [passFromHandCount, setPassFromHandCount] = useState(2);
 
+    const [isLearningMode, setIsLearningMode] = useState(false);
+    const [ghostHand, setGhostHand] = useState({});
+    const [charlestonHistory, setCharlestonHistory] = useState([]);
+    const [ghostDecision, setGhostDecision] = useState({ action: 'continue' });
+
     const maxHandSize = isDealer ? 14 : 13;
 
     const handAsArray = useMemo(() => {
@@ -58,6 +65,13 @@ function Home({ onMenuToggle }) {
             return tileData ? Array(quantity).fill(tileData) : [];
         });
     }, [playerHand]);
+
+    const ghostHandAsArray = useMemo(() => {
+        return Object.entries(ghostHand).flatMap(([tileId, quantity]) => {
+            const tileData = tiles.find(t => t.id === tileId);
+            return tileData ? Array(quantity).fill(tileData) : [];
+        });
+    }, [ghostHand]);
 
     const fullDeckCounts = useMemo(() => {
         const deck = {};
@@ -78,7 +92,7 @@ function Home({ onMenuToggle }) {
     }, [playerHand, fullDeckCounts]);
 
     useEffect(() => {
-        if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED) return;
+        if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED || gamePhase === GAME_PHASES.REVEAL) return;
 
         const newResults = calculateProbabilities(handAsArray, activeWinningHands, { jokerCount, blankCount });
         setProbabilities(newResults);
@@ -108,6 +122,23 @@ function Home({ onMenuToggle }) {
         }
     }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray, jokerCount, blankCount]);
 
+    useEffect(() => {
+        if (isLearningMode && (gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.CHARLESTON_DECISION || gamePhase === GAME_PHASES.FINAL_PASS)) {
+            const ghostResults = calculateProbabilities(ghostHandAsArray, activeWinningHands, { jokerCount, blankCount });
+            const ghostHandsWithMetrics = activeWinningHands.map(hand => ({
+                ...hand,
+                prob: ghostResults[hand.name]?.prob || 0,
+                value: ghostResults[hand.name]?.value || 0,
+                bestVariation: ghostResults[hand.name]?.bestVariation
+            }));
+            ghostHandsWithMetrics.sort((a, b) => b.value - a.value);
+            
+            if (gamePhase === GAME_PHASES.CHARLESTON_DECISION) {
+                setGhostDecision(getCharlestonRecommendation(ghostHandsWithMetrics));
+            }
+        }
+    }, [ghostHand, gamePhase, isLearningMode]);
+
     const activeTopHand = targetHand || sortedHands[0];
 
     const totalTileCount = useMemo(() => Object.values(playerHand).reduce((sum, count) => sum + count, 0), [playerHand]);
@@ -130,14 +161,40 @@ function Home({ onMenuToggle }) {
         }
     };
 
-    // --- NEW FUNCTION ---
-    // This new handler will be used for clicking the tile image directly.
-    const handleTileImageClick = (tile) => {
-        handleQuantityChange(tile, 'increment');
+    const handleSelectReceivedTile = (tile, action) => {
+        const totalReceived = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
+        const currentCount = receivedTiles[tile.id] || 0;
+
+        if (action === 'increment' && totalReceived < passCount) {
+            const availableCount = remainingDeckCounts[tile.id] || 0;
+            if (currentCount < availableCount) {
+                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
+            }
+        }
+        if (action === 'decrement' && currentCount > 0) {
+            const newCount = currentCount - 1;
+            const newReceived = { ...receivedTiles };
+            if (newCount === 0) delete newReceived[tile.id];
+            else newReceived[tile.id] = newCount;
+            setReceivedTiles(newReceived);
+        }
     };
-    // --- END NEW FUNCTION ---
     
-    const startCharleston = () => setGamePhase(GAME_PHASES.CHARLESTON_PASS);
+    const handleTileImageClick = (tile) => {
+        if (gamePhase === GAME_PHASES.INITIAL_SELECTION) {
+            handleQuantityChange(tile, 'increment');
+        } else if (gamePhase === GAME_PHASES.CHARLESTON_GET || gamePhase === GAME_PHASES.FINAL_GET) {
+            handleSelectReceivedTile(tile, 'increment');
+        }
+    };
+    
+    const startCharleston = () => {
+        if (isLearningMode) {
+            setGhostHand({ ...playerHand });
+            setCharlestonHistory([]);
+        }
+        setGamePhase(GAME_PHASES.CHARLESTON_PASS);
+    };
     
     const goBackToSelection = () => {
         setGamePhase(GAME_PHASES.INITIAL_SELECTION);
@@ -148,17 +205,38 @@ function Home({ onMenuToggle }) {
     const handleSelectTileToPass = (instanceKey) => {
         setTilesToPass(prev => {
             if (prev.includes(instanceKey)) return prev.filter(key => key !== instanceKey);
-            
-            const limit = gamePhase === GAME_PHASES.FINAL_PASS
-                ? 3
-                : isBlindPassing ? passFromHandCount : 3;
-
+            const limit = gamePhase === GAME_PHASES.FINAL_PASS ? 3 : isBlindPassing ? passFromHandCount : 3;
             if (prev.length < limit) return [...prev, instanceKey];
             return prev;
         });
     };
 
     const handleExchange = () => {
+        if (isLearningMode) {
+            const ghostResults = calculateProbabilities(ghostHandAsArray, activeWinningHands, { jokerCount, blankCount });
+            const ghostHandsWithMetrics = activeWinningHands.map(hand => ({...hand, prob: ghostResults[hand.name]?.prob || 0, value: ghostResults[hand.name]?.value || 0, bestVariation: ghostResults[hand.name]?.bestVariation }));
+            ghostHandsWithMetrics.sort((a, b) => b.value - a.value);
+            
+            let ghostTilesToPass = [];
+            if (ghostDecision.action === 'continue') {
+                ghostTilesToPass = recommendFinalPass(ghostHandAsArray, ghostHandsWithMetrics).tiles;
+            }
+
+            setCharlestonHistory(prev => [...prev, {
+                step: charlestonSteps[charlestonPassIndex]?.title || 'Final Pass Across',
+                playerPass: tilesToPass,
+                ghostPass: ghostTilesToPass
+            }]);
+
+            const newGhostHand = { ...ghostHand };
+            ghostTilesToPass.forEach(instanceKey => {
+                const tileId = instanceKey.split('-')[0];
+                newGhostHand[tileId] -= 1;
+                if (newGhostHand[tileId] === 0) delete newGhostHand[tileId];
+            });
+            setGhostHand(newGhostHand);
+        }
+
         const newHand = { ...playerHand };
         tilesToPass.forEach(instanceKey => {
             const tileId = instanceKey.split('-')[0];
@@ -183,7 +261,8 @@ function Home({ onMenuToggle }) {
             setIsBlindPassing(false);
             setTilesToPass([]);
             if (gamePhase === GAME_PHASES.FINAL_PASS) {
-                setGamePhase(GAME_PHASES.GAME_STARTED);
+                if (isLearningMode) setGamePhase(GAME_PHASES.REVEAL);
+                else setGamePhase(GAME_PHASES.GAME_STARTED);
             } else {
                 handleConfirmReceived();
             }
@@ -195,26 +274,17 @@ function Home({ onMenuToggle }) {
         setIsBlindPassing(false);
     };
 
-    const handleSelectReceivedTile = (tile, action) => {
-        const totalReceived = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
-        const currentCount = receivedTiles[tile.id] || 0;
-
-        if (action === 'increment' && totalReceived < passCount) {
-            const availableCount = remainingDeckCounts[tile.id] || 0;
-            if (currentCount < availableCount) {
-                setReceivedTiles(prev => ({ ...prev, [tile.id]: currentCount + 1 }));
-            }
-        }
-        if (action === 'decrement' && currentCount > 0) {
-            const newCount = currentCount - 1;
-            const newReceived = { ...receivedTiles };
-            if (newCount === 0) delete newReceived[tile.id];
-            else newReceived[tile.id] = newCount;
-            setReceivedTiles(newReceived);
-        }
-    };
-
     const handleConfirmReceived = () => {
+        if (isLearningMode) {
+            const incomingTilesAsArray = Object.entries(receivedTiles).flatMap(([tileId, quantity]) => {
+                const tileData = tiles.find(t => t.id === tileId);
+                return tileData ? Array(quantity).fill(tileData) : [];
+            });
+            
+            const newGhostHand = cherryPickTiles(ghostHandAsArray, incomingTilesAsArray, maxHandSize, activeWinningHands, { jokerCount, blankCount });
+            setGhostHand(newGhostHand);
+        }
+
         const newHand = { ...playerHand };
         Object.entries(receivedTiles).forEach(([tileId, quantity]) => {
             newHand[tileId] = (newHand[tileId] || 0) + quantity;
@@ -223,7 +293,8 @@ function Home({ onMenuToggle }) {
         setReceivedTiles({});
 
         if (gamePhase === GAME_PHASES.FINAL_GET) {
-            setGamePhase(GAME_PHASES.GAME_STARTED);
+            if (isLearningMode) setGamePhase(GAME_PHASES.REVEAL);
+            else setGamePhase(GAME_PHASES.GAME_STARTED);
         } else if (charlestonPassIndex === 2) {
             setCharlestonPassIndex(prev => prev + 1);
             setGamePhase(GAME_PHASES.CHARLESTON_DECISION);
@@ -238,10 +309,15 @@ function Home({ onMenuToggle }) {
     
     const continueCharleston = () => setGamePhase(GAME_PHASES.CHARLESTON_PASS);
     
-    const skipSecondCharleston = () => {
-        setGamePhase(GAME_PHASES.FINAL_PASS);
-        setIsBlindPassing(false);
-    };
+    const skipSecondCharleston = () => setGamePhase(GAME_PHASES.FINAL_PASS);
+
+    const startNewGame = () => {
+        setPlayerHand({});
+        setGhostHand({});
+        setCharlestonHistory([]);
+        setGamePhase(GAME_PHASES.INITIAL_SELECTION);
+        setCharlestonPassIndex(0);
+    }
 
     const totalReceivedCount = Object.values(receivedTiles).reduce((s, c) => s + c, 0);
 
@@ -264,6 +340,15 @@ function Home({ onMenuToggle }) {
 
     const numberWords = ['None', 'One', 'Two', 'Three'];
     const finalPassButtonText = `Exchange ${numberWords[tilesToPass.length] || tilesToPass.length}`;
+
+    if (gamePhase === GAME_PHASES.REVEAL) {
+        return <RevealScreen 
+                    playerHand={playerHand} 
+                    ghostHand={ghostHand} 
+                    history={charlestonHistory}
+                    onStartNewGame={startNewGame}
+                />
+    }
 
     return (
         <div>
@@ -300,11 +385,16 @@ function Home({ onMenuToggle }) {
                                 {[0, 2, 4, 6].map(i => <option key={i} value={i}>{i}</option>)}
                             </select>
                         </div>
+                        <div>
+                            <label htmlFor="learning-mode-checkbox">
+                                <input id="learning-mode-checkbox" type="checkbox" checked={isLearningMode} onChange={() => setIsLearningMode(!isLearningMode)} />
+                                Learning Mode
+                            </label>
+                        </div>
                     </div>
-                    {/* Pass the new handler to the TileGrid component */}
                     <TileGrid 
                         onQuantityChange={handleQuantityChange} 
-                        onTileImageClick={handleTileImageClick} // Pass the new handler
+                        onTileImageClick={handleTileImageClick}
                         selectedTiles={playerHand} 
                         blankCount={blankCount} 
                     />
@@ -337,6 +427,7 @@ function Home({ onMenuToggle }) {
                         onTileClick={handleSelectTileToPass}
                         selectedForAction={tilesToPass}
                         topHand={activeTopHand}
+                        isLearningMode={isLearningMode}
                     />
                     
                     {gamePhase === GAME_PHASES.CHARLESTON_PASS && (
@@ -346,12 +437,12 @@ function Home({ onMenuToggle }) {
                     )}
                     
                      {gamePhase === GAME_PHASES.FINAL_PASS && (
-                        <button className="btn-confirm" onClick={handleExchange} disabled={tilesToPass.length > 3}>
+                        <button className="btn-confirm" onClick={handleExchange}>
                             {finalPassButtonText}
                         </button>
                     )}
 
-                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && (charlestonPassIndex === 2 || charlestonPassIndex === 5) && (
+                    {(charlestonPassIndex === 2 || charlestonPassIndex === 5) && !isLearningMode && (
                         <button className={isBlindPassing ? 'btn-cancel' : 'btn-neutral'} onClick={() => {setIsBlindPassing(!isBlindPassing); setTilesToPass([]);}} style={{marginLeft: '10px'}}>
                             {isBlindPassing ? 'Cancel Blind Pass' : 'Blind Pass'}
                         </button>
@@ -363,13 +454,15 @@ function Home({ onMenuToggle }) {
                 <>
                     <PageHeader title="Charleston Decision" onMenuToggle={onMenuToggle} />
                      <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
-                    <Hand hand={playerHand} topHand={activeTopHand} />
-                    <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
-                        <h3>Recommendation: <span style={{ color: charlestonDecision.action === 'skip' ? 'red' : 'green' }}>{charlestonDecision.action.toUpperCase()}</span></h3>
-                        <p>{charlestonDecision.reason}</p>
-                        <button className="btn-confirm" onClick={continueCharleston}>Continue to Second Charleston</button>
-                        <button className="btn-cancel" onClick={skipSecondCharleston} style={{ marginLeft: '10px' }}>Skip Second Charleston</button>
-                    </div>
+                    <Hand hand={playerHand} topHand={activeTopHand} isLearningMode={isLearningMode} />
+                    {!isLearningMode && (
+                        <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
+                            <h3>Recommendation: <span style={{ color: charlestonDecision.action === 'skip' ? 'red' : 'green' }}>{charlestonDecision.action.toUpperCase()}</span></h3>
+                            <p>{charlestonDecision.reason}</p>
+                        </div>
+                    )}
+                    <button className="btn-confirm" onClick={continueCharleston}>Continue to Second Charleston</button>
+                    <button className="btn-cancel" onClick={skipSecondCharleston} style={{ marginLeft: '10px' }}>Skip Second Charleston</button>
                 </>
             )}
             
@@ -377,7 +470,8 @@ function Home({ onMenuToggle }) {
                 <>
                     <PageHeader title={`Select ${passCount} Tiles You Received`} onMenuToggle={onMenuToggle} />
                     <TileGrid 
-                        onQuantityChange={handleSelectReceivedTile} 
+                        onQuantityChange={handleSelectReceivedTile}
+                        onTileImageClick={handleTileImageClick}
                         selectedTiles={receivedTiles} 
                         blankCount={blankCount}
                         availableQuantities={remainingDeckCounts}
@@ -399,7 +493,7 @@ function Home({ onMenuToggle }) {
                 </>
             )}
 
-            {gamePhase !== GAME_PHASES.INITIAL_SELECTION && (
+            {gamePhase !== GAME_PHASES.INITIAL_SELECTION && !isLearningMode && (
                 <div style={{ marginTop: '20px' }}>
                     <h2>Top Winning Hands:</h2>
                     {handsToShow.map((winningHand) => {

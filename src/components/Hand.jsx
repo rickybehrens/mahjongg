@@ -28,17 +28,44 @@ const handObjToArray = (handObj) => {
     });
 };
 
-function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
-    if (!topHand) {
-        return <div style={{ padding: '20px', fontStyle: 'italic' }}>Calculating best hand...</div>;
-    }
+// A simple sorting function for Learning Mode and as a fallback.
+const sortHandBySuit = (handArray) => {
+    const suitOrder = { 'Dot': 1, 'Bamboo': 2, 'Crack': 3, 'Wind': 4, 'Flower': 5, 'Joker': 6, 'Blank': 7 };
+    return [...handArray].sort((a, b) => {
+        if (suitOrder[a.suit] !== suitOrder[b.suit]) {
+            return suitOrder[a.suit] - suitOrder[b.suit];
+        }
+        // For tiles within the same suit, sort by value.
+        // Ensure numeric values are compared correctly.
+        const valA = typeof a.value === 'number' ? a.value : Infinity;
+        const valB = typeof b.value === 'number' ? b.value : Infinity;
+        return valA - valB;
+    });
+};
 
+
+function Hand({ hand, onTileClick, selectedForAction = [], topHand, isLearningMode, simpleView }) {
+    
     const playerTilesArray = handObjToArray(hand);
-    const { sortedHand, junkTiles } = sortHandAndIdentifyJunk(playerTilesArray, topHand);
+    let sortedHand, junkTiles = [];
+    let keeperCount = playerTilesArray.length;
 
     // --- THIS IS THE FIX ---
-    // Calculate the number of keeper tiles. The sorter places them first.
-    const keeperCount = sortedHand.length - junkTiles.length;
+    // If in learning mode (but not the final reveal screen), sort by suit.
+    if (isLearningMode && !simpleView) {
+        sortedHand = sortHandBySuit(playerTilesArray);
+    } else {
+        // Otherwise (for regular mode AND the reveal screen), sort by keeper/junk.
+        // If topHand is not available (like on the reveal screen), it will gracefully fall back to sorting by suit.
+        if (!topHand) {
+            sortedHand = sortHandBySuit(playerTilesArray);
+        } else {
+            const result = sortHandAndIdentifyJunk(playerTilesArray, topHand);
+            sortedHand = result.sortedHand;
+            junkTiles = result.junkTiles;
+            keeperCount = sortedHand.length - junkTiles.length;
+        }
+    }
 
     return (
         <div style={{ display: 'flex', flexWrap: 'wrap', padding: '10px' }}>
@@ -49,15 +76,18 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
                 const instanceKey = `${tile.id}-${index}`;
                 const isSelected = selectedForAction.includes(instanceKey);
                 
-                // A tile is a "keeper" if its position in the sorted array is before the junk tiles.
-                // This correctly handles duplicates.
-                const isKeeper = index < keeperCount;
+                let border = '3px solid transparent'; // Default transparent border
 
-                // Using your custom border color for junk tiles
-                let border = '3px solid #c30000ff'; // Red for junk tiles
-                if (isKeeper) {
-                    border = '3px solid #28a745'; // Green for keepers
+                // Only apply keeper/junk borders if NOT in learning mode and NOT on the simple view reveal screen.
+                if (!isLearningMode && !simpleView && topHand) {
+                    const isKeeper = index < keeperCount;
+                    if (isKeeper) {
+                        border = '3px solid #28a745'; // Green for keepers
+                    } else {
+                        border = '3px solid #c30000ff'; // Red for junk tiles
+                    }
                 }
+
                 if (isSelected) {
                     border = '3px solid #007bff'; // Blue for selected overrides everything
                 }
@@ -66,9 +96,9 @@ function Hand({ hand, onTileClick, selectedForAction = [], topHand }) {
                     <div 
                         key={instanceKey}
                         onClick={() => onTileClick && onTileClick(instanceKey)}
-                        style={{ margin: '3px', cursor: onTileClick ? 'pointer' : 'default', border }}
+                        style={{ margin: '3px', cursor: onTileClick ? 'pointer' : 'default', border, borderRadius: '5px' }}
                     >
-                        <img src={imagePath} alt={imageKey} style={{ width: '50px', height: '70px' }} />
+                        <img src={imagePath} alt={imageKey} style={{ width: '50px', height: '70px', display: 'block' }} />
                     </div>
                 );
             })}
