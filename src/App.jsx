@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Rules from './pages/Rules';
 import ContactMe from './pages/Contact_Me';
+import Tutorial from './pages/Tutorial'; // Import the new component
 import SideMenu from './components/SideMenu';
 import './App.css';
 import './pages/Rules.css'; // Import the new CSS file
@@ -20,6 +21,8 @@ function App() {
         return <About onMenuToggle={handleMenuToggle} />;
       case 'rules':
         return <Rules onMenuToggle={handleMenuToggle} />;
+      case 'tutorial': // Add a new case for the tutorial page
+        return <Tutorial onMenuToggle={handleMenuToggle} />;
       case 'contact':
         return <ContactMe onMenuToggle={handleMenuToggle} />;
       case 'home':
