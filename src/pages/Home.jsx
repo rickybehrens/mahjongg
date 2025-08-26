@@ -11,6 +11,12 @@ import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
 import RevealScreen from '../components/RevealScreen';
+// --- NEW IMPORTS ---
+import { generateRandomHand } from '../helpers/randomHandGenerator';
+import QuizIntro from '../components/QuizIntro';
+import QuizSectionSelect from '../components/QuizSectionSelect';
+import QuizHandSelect from '../components/QuizHandSelect';
+import QuizResults from '../components/QuizResults';
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -21,6 +27,11 @@ const GAME_PHASES = {
     FINAL_GET: 'FINAL_GET',
     GAME_STARTED: 'GAME_STARTED',
     REVEAL: 'REVEAL',
+    // --- NEW QUIZ PHASES ---
+    QUIZ_INTRO: 'QUIZ_INTRO',
+    QUIZ_SELECT_SECTION: 'QUIZ_SELECT_SECTION',
+    QUIZ_SELECT_HAND: 'QUIZ_SELECT_HAND',
+    QUIZ_RESULTS: 'QUIZ_RESULTS',
 };
 
 const charlestonSteps = [
@@ -57,6 +68,12 @@ function Home({ onMenuToggle }) {
     const [charlestonHistory, setCharlestonHistory] = useState([]);
     const [ghostDecision, setGhostDecision] = useState({ action: 'continue' });
 
+    // --- NEW STATE FOR QUIZ MODE ---
+    const [quizHand, setQuizHand] = useState({});
+    const [userPicks, setUserPicks] = useState([]);
+    const [quizResults, setQuizResults] = useState(null);
+    const [selectedSection, setSelectedSection] = useState(null);
+
     const maxHandSize = isDealer ? 14 : 13;
 
     const handAsArray = useMemo(() => {
@@ -92,7 +109,13 @@ function Home({ onMenuToggle }) {
     }, [playerHand, fullDeckCounts]);
 
     useEffect(() => {
-        if (handAsArray.length < 13 || gamePhase === GAME_PHASES.GAME_STARTED || gamePhase === GAME_PHASES.REVEAL) return;
+        const isQuizPhase = gamePhase.startsWith('QUIZ');
+        if (isQuizPhase) return; // Don't run this for quiz mode
+
+        if (handAsArray.length < maxHandSize) {
+            setSortedHands([]); // Clear hands if not a full hand
+            return;
+        }
 
         const newResults = calculateProbabilities(handAsArray, activeWinningHands, { jokerCount, blankCount });
         setProbabilities(newResults);
@@ -120,7 +143,7 @@ function Home({ onMenuToggle }) {
             const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
             setFinalPassRecommendation(recommendation);
         }
-    }, [playerHand, gamePhase, charlestonPassIndex, activeWinningHands, handAsArray, jokerCount, blankCount]);
+    }, [playerHand, gamePhase, activeWinningHands, handAsArray, jokerCount, blankCount, maxHandSize]);
 
     useEffect(() => {
         if (isLearningMode && (gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.CHARLESTON_DECISION || gamePhase === GAME_PHASES.FINAL_PASS)) {
@@ -161,8 +184,6 @@ function Home({ onMenuToggle }) {
         }
     };
 
-    // --- THIS IS THE CORRECTED FUNCTION ---
-    // It now calls the correct handler based on the current game phase.
     const handleTileImageClick = (tile) => {
         if (gamePhase === GAME_PHASES.INITIAL_SELECTION) {
             handleQuantityChange(tile, 'increment');
@@ -343,13 +364,93 @@ function Home({ onMenuToggle }) {
     const numberWords = ['None', 'One', 'Two', 'Three'];
     const finalPassButtonText = `Exchange ${numberWords[tilesToPass.length] || tilesToPass.length}`;
 
-    if (gamePhase === GAME_PHASES.REVEAL) {
-        return <RevealScreen 
-                    playerHand={playerHand} 
-                    ghostHand={ghostHand} 
-                    history={charlestonHistory}
-                    onStartNewGame={startNewGame}
-                />
+    // --- NEW QUIZ LOGIC ---
+    const startQuiz = () => {
+        const randomHand = generateRandomHand({ jokerCount, blankCount, handSize: maxHandSize });
+        setQuizHand(randomHand);
+        setUserPicks([]);
+        setQuizResults(null);
+        setSelectedSection(null);
+        setGamePhase(GAME_PHASES.QUIZ_SELECT_SECTION);
+    };
+
+    const handleSectionSelect = (section) => {
+        setSelectedSection(section);
+        setGamePhase(GAME_PHASES.QUIZ_SELECT_HAND);
+    };
+
+    const handleHandSelect = (hand) => {
+        const newPicks = [...userPicks, hand];
+        setUserPicks(newPicks);
+
+        if (newPicks.length === 3) {
+            const quizHandArray = Object.entries(quizHand).flatMap(([tileId, quantity]) => {
+                const tileData = tiles.find(t => t.id === tileId);
+                return tileData ? Array(quantity).fill(tileData) : [];
+            });
+            const allScores = calculateProbabilities(quizHandArray, activeWinningHands, { jokerCount, blankCount });
+            const allHandsWithScores = activeWinningHands.map(h => ({
+                ...h,
+                value: allScores[h.name]?.value || 0,
+                bestVariation: allScores[h.name]?.bestVariation
+            })).sort((a, b) => b.value - a.value);
+
+            const topThreeHands = allHandsWithScores.slice(0, 3);
+            
+            const threshold = topThreeHands.length > 2 ? (topThreeHands[2].value * 0.95) : 0; 
+            const correctPicks = newPicks.filter(pick => {
+                const pickScore = allScores[pick.name]?.value || 0;
+                return pickScore >= threshold;
+            });
+
+            setQuizResults({
+                userPicks: newPicks.map(p => ({...p, value: allScores[p.name]?.value || 0, bestVariation: allScores[p.name]?.bestVariation })),
+                appPicks: topThreeHands,
+                score: correctPicks.length
+            });
+            setGamePhase(GAME_PHASES.QUIZ_RESULTS);
+        } else {
+            setSelectedSection(null);
+            setGamePhase(GAME_PHASES.QUIZ_SELECT_SECTION);
+        }
+    };
+
+    const exitQuiz = () => {
+        setGamePhase(GAME_PHASES.INITIAL_SELECTION);
+    };
+
+    // --- RENDER LOGIC ---
+
+    if (gamePhase.startsWith('QUIZ')) {
+        if (gamePhase === GAME_PHASES.QUIZ_INTRO) {
+            return <QuizIntro onStartQuiz={startQuiz} onExit={exitQuiz} />;
+        }
+        if (gamePhase === GAME_PHASES.QUIZ_SELECT_SECTION) {
+            return <QuizSectionSelect 
+                        hand={quizHand}
+                        onSectionSelect={handleSectionSelect}
+                        pickNumber={userPicks.length + 1}
+                        onExit={exitQuiz}
+                    />;
+        }
+        if (gamePhase === GAME_PHASES.QUIZ_SELECT_HAND) {
+            return <QuizHandSelect
+                        hand={quizHand}
+                        section={selectedSection}
+                        allHands={activeWinningHands}
+                        onHandSelect={handleHandSelect}
+                        pickNumber={userPicks.length + 1}
+                        onBack={() => setGamePhase(GAME_PHASES.QUIZ_SELECT_SECTION)}
+                    />;
+        }
+        if (gamePhase === GAME_PHASES.QUIZ_RESULTS) {
+            return <QuizResults 
+                        results={quizResults}
+                        hand={quizHand}
+                        onPlayAgain={startQuiz}
+                        onExit={exitQuiz}
+                    />;
+        }
     }
 
     return (
@@ -387,11 +488,8 @@ function Home({ onMenuToggle }) {
                                 {[0, 2, 4, 6].map(i => <option key={i} value={i}>{i}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label htmlFor="learning-mode-checkbox">
-                                <input id="learning-mode-checkbox" type="checkbox" checked={isLearningMode} onChange={() => setIsLearningMode(!isLearningMode)} />
-                                Learning Mode
-                            </label>
+                        <div style={{ marginLeft: 'auto' }}>
+                           <button className="btn-neutral" onClick={() => setGamePhase(GAME_PHASES.QUIZ_INTRO)}>Start Quiz</button>
                         </div>
                     </div>
                     <TileGrid 
@@ -400,9 +498,11 @@ function Home({ onMenuToggle }) {
                         selectedTiles={playerHand} 
                         blankCount={blankCount} 
                     />
-                    <button className="btn-confirm" onClick={startCharleston} disabled={totalTileCount !== maxHandSize}>
-                        Confirm Hand & Start Charleston
-                    </button>
+                    <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                        <button className="btn-confirm" onClick={startCharleston} disabled={totalTileCount !== maxHandSize}>
+                            Confirm Hand & Start Charleston
+                        </button>
+                    </div>
                 </>
             )}
 
@@ -429,7 +529,6 @@ function Home({ onMenuToggle }) {
                         onTileClick={handleSelectTileToPass}
                         selectedForAction={tilesToPass}
                         topHand={activeTopHand}
-                        isLearningMode={isLearningMode}
                     />
                     
                     {gamePhase === GAME_PHASES.CHARLESTON_PASS && (
@@ -444,7 +543,7 @@ function Home({ onMenuToggle }) {
                         </button>
                     )}
 
-                    {(charlestonPassIndex === 2 || charlestonPassIndex === 5) && !isLearningMode && (
+                    {gamePhase === GAME_PHASES.CHARLESTON_PASS && (charlestonPassIndex === 2 || charlestonPassIndex === 5) && (
                         <button className={isBlindPassing ? 'btn-cancel' : 'btn-neutral'} onClick={() => {setIsBlindPassing(!isBlindPassing); setTilesToPass([]);}} style={{marginLeft: '10px'}}>
                             {isBlindPassing ? 'Cancel Blind Pass' : 'Blind Pass'}
                         </button>
@@ -456,13 +555,11 @@ function Home({ onMenuToggle }) {
                 <>
                     <PageHeader title="Charleston Decision" onMenuToggle={onMenuToggle} />
                      <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
-                    <Hand hand={playerHand} topHand={activeTopHand} isLearningMode={isLearningMode} />
-                    {!isLearningMode && (
-                        <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
-                            <h3>Recommendation: <span style={{ color: charlestonDecision.action === 'skip' ? 'red' : 'green' }}>{charlestonDecision.action.toUpperCase()}</span></h3>
-                            <p>{charlestonDecision.reason}</p>
-                        </div>
-                    )}
+                    <Hand hand={playerHand} topHand={activeTopHand} />
+                    <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
+                        <h3>Recommendation: <span style={{ color: charlestonDecision.action === 'skip' ? 'red' : 'green' }}>{charlestonDecision.action.toUpperCase()}</span></h3>
+                        <p>{charlestonDecision.reason}</p>
+                    </div>
                     <button className="btn-confirm" onClick={continueCharleston}>Continue to Second Charleston</button>
                     <button className="btn-cancel" onClick={skipSecondCharleston} style={{ marginLeft: '10px' }}>Skip Second Charleston</button>
                 </>
@@ -495,7 +592,8 @@ function Home({ onMenuToggle }) {
                 </>
             )}
 
-            {gamePhase !== GAME_PHASES.INITIAL_SELECTION && !isLearningMode && (
+            {((totalTileCount === maxHandSize && gamePhase === GAME_PHASES.INITIAL_SELECTION) || 
+              (gamePhase !== GAME_PHASES.INITIAL_SELECTION && !gamePhase.startsWith('QUIZ'))) && (
                 <div style={{ marginTop: '20px' }}>
                     <h2>Top Winning Hands:</h2>
                     {handsToShow.map((winningHand) => {
