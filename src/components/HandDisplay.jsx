@@ -1,8 +1,7 @@
 // src/components/HandDisplay.jsx
-import React, { useMemo } from 'react';
+import React from 'react';
 
-// This function determines the character and color for a single tile ID
-// It now accepts a dynamic color map to handle the green-red-blue convention.
+// This helper function remains the same.
 const getDisplayInfo = (tileId, colorMap) => {
     if (!tileId) {
         return { value: '?', color: 'black' };
@@ -28,37 +27,14 @@ const getDisplayInfo = (tileId, colorMap) => {
 };
 
 function HandDisplay({ variation, name }) {
-    // This is the core of the fix. It creates a dynamic color map for each hand variation.
-    const dynamicSuitColorMap = useMemo(() => {
-        if (!variation || !variation.tiles) {
-            return {};
-        }
-
-        const standardColors = ['green', 'red', 'blue'];
-        const foundSuits = [];
-        const colorMap = {};
-
-        // Find the unique suits in the order they appear
-        variation.tiles.forEach(tile => {
-            const suit = tile.id && tile.id.length > 1 ? tile.id.slice(-1) : null;
-            if (suit && ['B', 'C', 'D'].includes(suit) && !foundSuits.includes(suit)) {
-                foundSuits.push(suit);
-            }
-        });
-
-        // Assign colors based on the order found
-        foundSuits.forEach((suit, index) => {
-            colorMap[suit] = standardColors[index];
-        });
-
-        // If only one suit is found, it should be blue as per convention for single-suit hands.
-        if (foundSuits.length === 1) {
-            colorMap[foundSuits[0]] = 'blue';
-        }
-
-        return colorMap;
-    }, [variation]);
-
+    // --- THIS IS THE FIX ---
+    // The dynamic color map has been replaced with a static one.
+    // This ensures that suits always have the correct, conventional color.
+    const staticSuitColorMap = {
+        'B': 'green', // Bams will always be green
+        'C': 'red',   // Cracks will always be red
+        'D': 'blue',  // Dots will always be blue
+    };
 
     if (!variation || !variation.tiles) {
         return <span>{name}</span>;
@@ -76,8 +52,8 @@ function HandDisplay({ variation, name }) {
             groupSize++;
         }
 
-        // Pass the new dynamic color map to the helper function
-        const { value, color } = getDisplayInfo(tile?.id, dynamicSuitColorMap);
+        // The component now uses the reliable static color map.
+        const { value, color } = getDisplayInfo(tile?.id, staticSuitColorMap);
         const text = Array(groupSize).fill(value).join('');
         
         renderedGroups.push(

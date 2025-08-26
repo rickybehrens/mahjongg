@@ -27,23 +27,31 @@ function buildVariation(pattern, p) {
         const [tile, count, suitKey] = part;
         const suit = suitKey === 's1' ? p[0] : suitKey === 's2' ? p[1] : suitKey === 's3' ? p[2] : null;
 
+        // Handle special group patterns first
+        if (tile === 'NEWS') {
+            ['N', 'E', 'W', 'S'].forEach(t => tiles.push({ id: t }));
+            return; // Exit this iteration of forEach
+        }
+        if (tile === '2025') {
+            ['2', 'SOAP', '2', '5'].forEach(t => {
+                tiles.push({ id: t === 'SOAP' ? 'SOAP' : `${t}${suit}` })
+            });
+            return; // Exit this iteration of forEach
+        }
+        if (String(tile).length > 1 && /^[1-9]+$/.test(String(tile))) {
+            for (const char of String(tile)) {
+                tiles.push({ id: `${char}${suit}`});
+            }
+            return; // Exit this iteration of forEach
+        }
+
+        // Handle all other repeating tile patterns
         for (let i = 0; i < count; i++) {
             if (tile === 'D') {
                 tiles.push({ id: dragons[suit] });
             } else if (tile === 'OD') {
                 tiles.push({ id: suitKey });
-            } else if (tile === 'NEWS') {
-                ['N', 'E', 'W', 'S'].forEach(t => tiles.push({ id: t }));
-            } else if (tile === '2025') {
-                ['2', 'SOAP', '2', '5'].forEach(t => {
-                    tiles.push({ id: t === 'SOAP' ? 'SOAP' : `${t}${suit}` })
-                });
-            } else if (/^[1-9]+$/.test(String(tile))) { 
-                 for(const char of String(tile)) {
-                    tiles.push({ id: `${char}${suit}`});
-                 }
-            }
-            else if (suit) {
+            } else if (suit) {
                 tiles.push({ id: `${tile}${suit}` });
             } else {
                 tiles.push({ id: tile });
@@ -101,26 +109,21 @@ hands.push({
 });
 
 // --- SECTION: 2468 ---
-const fourGroupNumbers2468 = [['2', 3], ['4', 4], ['6', 3], ['8', 4]];
-const twoSuitPartitions2468 = generatePartitions(4, 2);
-const twoSuitPatterns2468 = twoSuitPartitions2468.map(partition => 
-    fourGroupNumbers2468.map((group, i) => [...group, partition[i]])
-);
-
 hands.push({
   name: '2468 - Hand 1 (1 or 2 Suits)',
   value: 25,
   variations: [
+      // 1-Suit Variation
       ...suits.map(s => buildVariation([['2', 3, 's1'], ['4', 4, 's1'], ['6', 3, 's1'], ['8', 4, 's1']], [s])),
-      ...twoSuitPatterns2468.flatMap(pattern => 
-            getPermutations(suits, 2).map(p => buildVariation(pattern, p))
-      )
+      // 2-Suit Variations (Explicitly define the two valid partitions from the card)
+      ...getPermutations(suits, 2).map(p => buildVariation([['2', 3, 's1'], ['4', 4, 's1'], ['6', 3, 's2'], ['8', 4, 's2']], p))
   ]
 });
 hands.push({
   name: '2468 - Hand 2',
   value: 25,
   variations: [
+      // Explicitly define the two "or" conditions from the card
       ...getPermutations(suits, 3).map(p => buildVariation([['F', 2], ['2', 4, 's1'], ['4', 4, 's2'], ['6', 4, 's3']], p)),
       ...getPermutations(suits, 3).map(p => buildVariation([['F', 2], ['2', 4, 's1'], ['6', 4, 's2'], ['8', 4, 's3']], p))
   ]
@@ -148,10 +151,35 @@ hands.push({
   variations: getPermutations(suits, 3).map(p => buildVariation([['2', 3, 's1'], ['4', 4, 's1'], ['6', 3, 's1'], ['8', 2, 's2'], ['8', 2, 's3']], p))
 });
 ['2','4','6','8'].forEach(n => {
+    const variations = [];
+    const dragonSuitKeys = ['B', 'C', 'D']; // Representing Green, Red, White Dragons
+    const numberSuits = ['B', 'C', 'D'];    // Representing Bams, Cracks, Dots
+
+    // 1. Iterate through each of the 3 possible Dragon suits.
+    dragonSuitKeys.forEach(dragonKey => {
+        // 2. Iterate through each of the 3 unique combinations of 2 Number suits.
+        //    (e.g., Bams/Cracks, Bams/Dots, Cracks/Dots)
+        for (let i = 0; i < numberSuits.length; i++) {
+            for (let j = i + 1; j < numberSuits.length; j++) {
+                const numSuit1 = numberSuits[i];
+                const numSuit2 = numberSuits[j];
+
+                // Define the pattern for the three kongs (Number, Dragon, Number).
+                const pattern = [['F', 2], [n, 4, 's1'], ['D', 4, 's2'], [n, 4, 's3']];
+                
+                // Create the specific suit permutation for this unique hand.
+                const p = [numSuit1, dragonKey, numSuit2];
+                
+                // Build the variation and add it to our list.
+                variations.push(buildVariation(pattern, p));
+            }
+        }
+    });
+
     hands.push({
         name: `2468 - Hand 7 (Kong ${n}s)`,
         value: 25,
-        variations: getPermutations(suits, 3).map(p => buildVariation([['F', 2], [n, 4, 's1'], ['D', 4, 's2'], [n, 4, 's3']], p))
+        variations: variations // This will now contain the 9 correct variations for the number 'n'
     });
 });
 ['2','4','6','8'].forEach(n => {
@@ -223,10 +251,16 @@ hands.push({
         ...suits.map(s => buildVariation([['5',2,'s1'],['6',3,'s1'],['7',4,'s1'],['8',3,'s1'],['9',2,'s1']], [s]))
     ]
 });
+
+// Corrected Hand #2
 for (let i = 1; i <= 6; i++) {
     const numberGroups = [[String(i), 3], [String(i + 1), 4], [String(i + 2), 3], [String(i + 3), 4]];
-    const twoSuitPartitions = generatePartitions(4, 2);
-    const twoSuitPatterns = twoSuitPartitions.map(partition => numberGroups.map((group, index) => [...group, partition[index]]));
+    const twoSuitPartitions = [
+        [['s1'], ['s1'], ['s2'], ['s2']], // Partition type (2,2)
+    ];
+    const twoSuitPatterns = twoSuitPartitions.map(partition => 
+        numberGroups.map((group, index) => [...group, partition[index]])
+    );
     hands.push({
         name: `Consecutive Run - Hand 2 (${i}-${i+3}, 1 or 2 Suits)`,
         value: 25,
@@ -236,6 +270,7 @@ for (let i = 1; i <= 6; i++) {
         ]
     });
 }
+
 for (let i = 1; i <= 7; i++) {
     hands.push({
         name: `Consecutive Run - Hand 3 (${i}-${i+2}, 1 or 3 Suits)`,
@@ -246,6 +281,7 @@ for (let i = 1; i <= 7; i++) {
         ]
     });
 }
+
 for (let i = 1; i <= 5; i++) {
     hands.push({
         name: `Consecutive Run - Hand 4 (${i}-${i+4})`,
@@ -253,6 +289,7 @@ for (let i = 1; i <= 5; i++) {
         variations: getPermutations(suits, 3).map(p => buildVariation([['F',3],[`${i}${i+1}${i+2}`,1,'s1'],[String(i+3),4,'s2'],[String(i+4),4,'s3']], p))
     });
 }
+
 for (let i = 1; i <= 7; i++) {
     hands.push({
         name: `Consecutive Run - Hand 5 (${i}-${i+2})`,
@@ -260,6 +297,7 @@ for (let i = 1; i <= 7; i++) {
         variations: suits.map(s => buildVariation([['F',2],[String(i),2,'s1'],[String(i+1),3,'s1'],[String(i+2),4,'s1'],['D',3,'s1']], [s]))
     });
 }
+
 for (let i = 1; i <= 7; i++) {
     const handName = `Consecutive Run - Hand 6 (${i}-${i+2})`;
     const variations = [];
@@ -279,6 +317,7 @@ for (let i = 1; i <= 7; i++) {
     });
     hands.push({ name: handName, value: 25, variations });
 }
+
 for (let i = 1; i <= 5; i++) {
     for (let j = i; j <= i + 4; j++) {
         const runSingles = [];
@@ -306,6 +345,7 @@ for (let i = 1; i <= 5; i++) {
         hands.push({ name: handName, value: 30, variations });
     }
 }
+
 for (let i = 1; i <= 7; i++) {
     hands.push({
         name: `Consecutive Run - Hand 8 (${i}-${i+2})`,
@@ -412,23 +452,36 @@ hands.push({
         buildVariation([['N',3],['E',4],['W',4],['S',3]],[])
     ] 
 });
+
+// Corrected Winds-Dragons - Hand 2
 for (let i = 1; i <= 7; i++) {
     hands.push({
         name: `Winds-Dragons - Hand 2 (${i}-${i+2})`,
         value: 25,
-        variations: suits.map(s => buildVariation([['F',2],[String(i),3,'s1'],['D',2,'s1'],['D',3,'s1'],['D',4,'s1']], [s]))
+        variations: suits.map(s => buildVariation([
+            ['F', 2],
+            [String(i), 1, 's1'],
+            [String(i+1), 1, 's1'],
+            [String(i+2), 1, 's1'],
+            ['GD', 2],
+            ['RD', 3],
+            ['WD', 4]
+        ], [s]))
     });
 }
+
 hands.push({
   name: 'Winds-Dragons - Hand 3',
   value: 25,
   variations: [buildVariation([['F',3],['N',2],['E',2],['W',3],['S',4]],[])]
 });
+
 hands.push({
   name: 'Winds-Dragons - Hand 4',
   value: 25,
   variations: getPermutations(['GD','RD','WD'], 2).map(p => buildVariation([['F',4],[p[0],3],['NEWS',1],[p[1],3]],[]))
 });
+
 [1,3,5,7,9].forEach(n => {
     hands.push({
         name: `Winds-Dragons - Hand 5 (Odd ${n}s)`,
@@ -436,6 +489,7 @@ hands.push({
         variations: getPermutations(suits, 3).map(p => buildVariation([['N',4],[String(n),1,'s1'],[String(n),2,'s2'],[String(n),3,'s3'],['S',4]], p))
     });
 });
+
 [2,4,6,8].forEach(n => {
     hands.push({
         name: `Winds-Dragons - Hand 6 (Even ${n}s)`,
@@ -443,6 +497,7 @@ hands.push({
         variations: getPermutations(suits, 3).map(p => buildVariation([['E',4],[String(n),1,'s1'],[String(n),2,'s2'],[String(n),3,'s3'],['W',4]], p))
     });
 });
+
 hands.push({
   name: 'Winds-Dragons - Hand 7',
   value: 30,
@@ -451,30 +506,27 @@ hands.push({
       ...suits.map(s => buildVariation([['N',3],['E',2],['W',2],['S',3],['2025',1,'s1']], [s]))
   ]
 });
+
 hands.push({
   name: 'Winds-Dragons - Hand 8',
   value: 30,
   isConcealed: true,
-  variations: [['GD','RD','WD']].map(d => buildVariation([['N',2],['E',2],['W',3],['S',3],[d,4]],[]))
+  variations: [['GD','RD','WD']].map(d => buildVariation([['N',2],['E',2],['W',3],['S',3],[d[0],4]],[]))
 });
 
 // --- SECTION: 369 ---
-const fourGroupNumbers369 = [['3', 3], ['6', 4], ['6', 3], ['9', 4]];
-const twoSuitPartitions369 = generatePartitions(4, 2);
-const threeSuitPartitions369 = generatePartitions(4, 3);
-const twoSuitPatterns369 = twoSuitPartitions369.map(partition => 
-    fourGroupNumbers369.map((group, i) => [...group, partition[i]])
-);
-const threeSuitPatterns369 = threeSuitPartitions369.map(partition => 
-    fourGroupNumbers369.map((group, i) => [...group, partition[i]])
-);
-
 hands.push({
   name: '369 - Hand 1 (2 or 3 Suits)',
   value: 25,
   variations: [
-      ...twoSuitPatterns369.flatMap(pattern => getPermutations(suits, 2).map(p => buildVariation(pattern, p))),
-      ...threeSuitPatterns369.flatMap(pattern => getPermutations(suits, 3).map(p => buildVariation(pattern, p)))
+      // 2-Suit Variations (Pung 3s & Kong 6s in one suit, Pung 6s & Kong 9s in another)
+      ...getPermutations(suits, 2).map(p => buildVariation([
+          ['3',3,'s1'],['6',4,'s1'],['6',3,'s2'],['9',4,'s2']
+      ], p)),
+      // 3-Suit Variations (Pung 3s & Kong 6s in one suit, Pung 6s in second, Kong 9s in third)
+      ...getPermutations(suits, 3).map(p => buildVariation([
+          ['3',3,'s1'],['6',4,'s1'],['6',3,'s2'],['9',4,'s3']
+      ], p))
   ]
 });
 hands.push({
@@ -501,16 +553,18 @@ hands.push({
     hands.push({
         name: `369 - Hand 5 (Kong ${n}s)`,
         value: 25,
-        variations: getPermutations(suits, 3).map(p => buildVariation([[String(n),2,'s1'],['6',2,'s1'],['9',2,'s1'],[String(n),4,'s2'],[String(n),4,'s3']], p))
+        variations: getPermutations(suits, 3).map(p => buildVariation([
+            ['3',2,'s1'],['6',2,'s1'],['9',2,'s1'],[String(n),4,'s2'],[String(n),4,'s3']
+        ], p))
     });
 });
-[3,6,9].forEach(n => {
-    hands.push({
-        name: `369 - Hand 6 (Pung ${n}s)`,
-        value: 30,
-        isConcealed: true,
-        variations: getPermutations(suits, 3).map(p => buildVariation([['F',2],[String(n),3,'s1'],['D',1,'s1'],[String(n),3,'s2'],['D',1,'s2'],[String(n),3,'s3'],['D',1,'s3']], p))
-    });
+hands.push({
+    name: `369 - Hand 6 (Matching Dragons)`,
+    value: 30,
+    isConcealed: true,
+    variations: getPermutations(suits, 3).map(p => buildVariation([
+        ['F',2],['3',3,'s1'],['D',1,'s1'],['6',3,'s2'],['D',1,'s2'],['9',3,'s3'],['D',1,'s3']
+    ], p))
 });
 
 // --- SECTION: SINGLES AND PAIRS ---
