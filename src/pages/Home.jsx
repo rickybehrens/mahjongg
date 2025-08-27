@@ -10,7 +10,6 @@ import HandDisplay from '../components/HandDisplay';
 import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
-import RevealScreen from '../components/RevealScreen';
 // --- NEW IMPORTS ---
 import { generateRandomHand } from '../helpers/randomHandGenerator';
 import QuizIntro from '../components/QuizIntro';
