@@ -43,7 +43,8 @@ function QuizResults({ results, hand, onPlayAgain, onExit }) {
                                 name={pick.name} 
                                 variation={pick.bestVariation || pick.variations[0]} 
                             />
-                            <strong>SV: {pick.value.toFixed(1)}</strong>
+                            {/* --- FIX: Display Probability instead of Strategic Value --- */}
+                            <strong>Prob: {(pick.prob * 100).toFixed(1)}%</strong>
                         </div>
                     ))}
                 </div>
@@ -55,7 +56,8 @@ function QuizResults({ results, hand, onPlayAgain, onExit }) {
                                 name={pick.name} 
                                 variation={pick.bestVariation || pick.variations[0]} 
                             />
-                            <strong>SV: {pick.value.toFixed(1)}</strong>
+                            {/* --- FIX: Display Probability instead of Strategic Value --- */}
+                            <strong>Prob: {(pick.prob * 100).toFixed(1)}%</strong>
                         </div>
                     ))}
                 </div>

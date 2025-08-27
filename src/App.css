@@ -78,18 +78,32 @@ button:disabled {
 .settings-container, .dealer-toggle {
     padding: 0 20px;
 }
+
+/* --- THIS IS THE UPDATED SECTION --- */
 .tile-grid-container {
     padding: 20px;
-    display: flex;
-    flex-direction: column;
+    display: grid; /* Changed from flex to grid */
+    grid-template-columns: 1fr 1fr; /* Create a two-column grid */
     gap: 20px;
 }
+
+/* Make the first three suit blocks (Bams, Cracks, Dots) span the full width */
+.suit-block:nth-child(1),
+.suit-block:nth-child(2),
+.suit-block:nth-child(3) {
+    grid-column: 1 / -1; /* This makes the element span from the first to the last column line */
+}
+
+/* The 4th block (Winds) and 5th block (Specials) will now automatically sit side-by-side */
+
 .suit-block {
     padding: 15px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
+/* --- END OF UPDATED SECTION --- */
+
 .suit-block h3 {
     margin-top: 0;
     margin-bottom: 15px;
@@ -243,4 +257,45 @@ button:disabled {
 .page-logo {
     height: 80px;
     width: auto;
+}
+
+/* --- NEW STYLES FOR HOME PAGE LAYOUT --- */
+
+/* Main container for the settings and action buttons */
+.initial-selection-header {
+  padding: 10px 20px;
+  display: flex;
+  flex-direction: column; /* Stack settings on top of buttons */
+  gap: 20px; /* Space between the settings and the buttons */
+}
+
+/* Container for the dropdown menus */
+.settings-container {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap; /* Allow settings to wrap on smaller screens */
+}
+
+/* Container for the Quiz and Confirm buttons */
+.action-buttons {
+  display: flex;
+  gap: 15px; /* Space between the two buttons */
+  align-items: center;
+  margin-left: -10px; /* Counteract the default button margin */
+}
+
+/* --- LOGIC FOR THE FIXED CONFIRM BUTTON --- */
+/* This rule is now much simpler. We remove the position:fixed logic */
+/* and just keep the visual "pop" effect. The stickiness is handled by the parent. */
+.btn-confirm:not([disabled]) {
+  /* Add some extra style to make it pop */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05); /* Slightly larger when active */
+  transition: transform 0.2s ease-in-out;
+}
+
+/* A little hover effect for the active button */
+.btn-confirm:not([disabled]):hover {
+    transform: scale(1.1);
 }

@@ -351,7 +351,7 @@ for (let i = 1; i <= 7; i++) {
         name: `Consecutive Run - Hand 8 (${i}-${i+2})`,
         value: 30,
         isConcealed: true,
-        variations: getPermutations(suits, 2).map(p => buildVariation([[String(i),1,'s1'],[String(i+1),2,'s1'],[String(i+2),3,'s1'],[String(i),1,'s2'],[String(i+1),2,'s2'],[String(i+2),3,'s2']], p))
+        variations: getPermutations(suits, 2).map(p => buildVariation([['F',2],[String(i),1,'s1'],[String(i+1),2,'s1'],[String(i+2),3,'s1'],[String(i),1,'s2'],[String(i+1),2,'s2'],[String(i+2),3,'s2']], p))
     });
 }
 

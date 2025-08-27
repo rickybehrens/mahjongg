@@ -364,7 +364,6 @@ function Home({ onMenuToggle }) {
     const numberWords = ['None', 'One', 'Two', 'Three'];
     const finalPassButtonText = `Exchange ${numberWords[tilesToPass.length] || tilesToPass.length}`;
 
-    // --- NEW QUIZ LOGIC ---
     const startQuiz = () => {
         const randomHand = generateRandomHand({ jokerCount, blankCount, handSize: maxHandSize });
         setQuizHand(randomHand);
@@ -389,22 +388,30 @@ function Home({ onMenuToggle }) {
                 return tileData ? Array(quantity).fill(tileData) : [];
             });
             const allScores = calculateProbabilities(quizHandArray, activeWinningHands, { jokerCount, blankCount });
+            
             const allHandsWithScores = activeWinningHands.map(h => ({
                 ...h,
+                prob: allScores[h.name]?.prob || 0,
                 value: allScores[h.name]?.value || 0,
                 bestVariation: allScores[h.name]?.bestVariation
-            })).sort((a, b) => b.value - a.value);
+            })).sort((a, b) => b.prob - a.prob);
 
             const topThreeHands = allHandsWithScores.slice(0, 3);
             
-            const threshold = topThreeHands.length > 2 ? (topThreeHands[2].value * 0.95) : 0; 
+            const threshold = topThreeHands.length > 2 ? (topThreeHands[2].prob * 0.90) : 0; 
+            
             const correctPicks = newPicks.filter(pick => {
-                const pickScore = allScores[pick.name]?.value || 0;
-                return pickScore >= threshold;
+                const pickProb = allScores[pick.name]?.prob || 0;
+                return pickProb >= threshold;
             });
 
             setQuizResults({
-                userPicks: newPicks.map(p => ({...p, value: allScores[p.name]?.value || 0, bestVariation: allScores[p.name]?.bestVariation })),
+                userPicks: newPicks.map(p => ({
+                    ...p, 
+                    prob: allScores[p.name]?.prob || 0,
+                    value: allScores[p.name]?.value || 0, 
+                    bestVariation: allScores[p.name]?.bestVariation 
+                })),
                 appPicks: topThreeHands,
                 score: correctPicks.length
             });
@@ -418,8 +425,6 @@ function Home({ onMenuToggle }) {
     const exitQuiz = () => {
         setGamePhase(GAME_PHASES.INITIAL_SELECTION);
     };
-
-    // --- RENDER LOGIC ---
 
     if (gamePhase.startsWith('QUIZ')) {
         if (gamePhase === GAME_PHASES.QUIZ_INTRO) {
@@ -453,6 +458,9 @@ function Home({ onMenuToggle }) {
         }
     }
 
+    // This variable is needed for the disabled state of the confirm button
+    const isConfirmButtonActive = totalTileCount === maxHandSize;
+
     return (
         <div>
             {gamePhase === GAME_PHASES.INITIAL_SELECTION && (
@@ -463,33 +471,38 @@ function Home({ onMenuToggle }) {
                             {totalTileCount} / {maxHandSize}
                         </div>
                     )}
-                    <div className="settings-container" style={{ margin: '10px 20px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div>
-                            <label htmlFor="year-select">Card Year: </label>
-                            <select id="year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-                                {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
-                            </select>
+                    <div className="initial-selection-header">
+                        <div className="settings-container">
+                            <div>
+                                <label htmlFor="year-select">Card Year: </label>
+                                <select id="year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+                                    {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
+                                </select>
+                            </div>
+                             <div>
+                                <label htmlFor="dealer-checkbox">
+                                    <input id="dealer-checkbox" type="checkbox" checked={isDealer} onChange={() => setIsDealer(!isDealer)} />
+                                    I am the Dealer
+                                </label>
+                            </div>
+                            <div>
+                                <label htmlFor="jokers-select">Jokers: </label>
+                                <select id="jokers-select" value={jokerCount} onChange={e => setJokerCount(parseInt(e.target.value))}>
+                                    {[8, 10].map(i => <option key={i} value={i}>{i}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="blanks-select">Blanks: </label>
+                                <select id="blanks-select" value={blankCount} onChange={e => setBlankCount(parseInt(e.target.value))}>
+                                    {[0, 2, 4, 6].map(i => <option key={i} value={i}>{i}</option>)}
+                                </select>
+                            </div>
                         </div>
-                         <div>
-                            <label htmlFor="dealer-checkbox">
-                                <input id="dealer-checkbox" type="checkbox" checked={isDealer} onChange={() => setIsDealer(!isDealer)} />
-                                I am the Dealer
-                            </label>
-                        </div>
-                        <div>
-                            <label htmlFor="jokers-select">Jokers: </label>
-                            <select id="jokers-select" value={jokerCount} onChange={e => setJokerCount(parseInt(e.target.value))}>
-                                {[8, 10].map(i => <option key={i} value={i}>{i}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="blanks-select">Blanks: </label>
-                            <select id="blanks-select" value={blankCount} onChange={e => setBlankCount(parseInt(e.target.value))}>
-                                {[0, 2, 4, 6].map(i => <option key={i} value={i}>{i}</option>)}
-                            </select>
-                        </div>
-                        <div style={{ marginLeft: 'auto' }}>
-                           <button className="btn-neutral" onClick={() => setGamePhase(GAME_PHASES.QUIZ_INTRO)}>Start Quiz</button>
+                        <div className="action-buttons">
+                            <button className="btn-neutral quiz-button" onClick={() => setGamePhase(GAME_PHASES.QUIZ_INTRO)}>Start Quiz</button>
+                            <button className="btn-confirm" onClick={startCharleston} disabled={!isConfirmButtonActive}>
+                                Confirm Hand & Start Charleston
+                            </button>
                         </div>
                     </div>
                     <TileGrid 
@@ -498,11 +511,6 @@ function Home({ onMenuToggle }) {
                         selectedTiles={playerHand} 
                         blankCount={blankCount} 
                     />
-                    <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                        <button className="btn-confirm" onClick={startCharleston} disabled={totalTileCount !== maxHandSize}>
-                            Confirm Hand & Start Charleston
-                        </button>
-                    </div>
                 </>
             )}
 
