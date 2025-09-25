@@ -43,7 +43,7 @@ const tiles = [
     { id: 'W', suit: 'Wind', value: 'West', name: 'West Wind', maxQuantity: 4 },
     { id: 'S', suit: 'Wind', value: 'South', name: 'South Wind', maxQuantity: 4 },
 
-    // --- Flowers, Jokers, and Blanks ---
+    // --- FIX: Added the missing data for Flowers, Jokers, and Blanks ---
     { id: 'F', suit: 'Flower', value: 'Flower', name: 'Flower', maxQuantity: 8 },
     { id: 'JOKER', suit: 'Joker', value: 'Joker', name: 'Joker', maxQuantity: 10 },
     { id: 'BLANK', suit: 'Blank', value: 'Blank', name: 'Blank', maxQuantity: 6 },
