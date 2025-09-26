@@ -27,34 +27,37 @@ function buildVariation(pattern, p) {
         const [tile, count, suitKey] = part;
         const suit = suitKey === 's1' ? p[0] : suitKey === 's2' ? p[1] : suitKey === 's3' ? p[2] : null;
 
-        // Handle special group patterns first
         if (tile === 'NEWS') {
             ['N', 'E', 'W', 'S'].forEach(t => tiles.push({ id: t }));
-            return; // Exit this iteration of forEach
+            return;
         }
         if (tile === '2025') {
             ['2', 'SOAP', '2', '5'].forEach(t => {
                 tiles.push({ id: t === 'SOAP' ? 'SOAP' : `${t}${suit}` })
             });
-            return; // Exit this iteration of forEach
+            return;
         }
         if (String(tile).length > 1 && /^[1-9]+$/.test(String(tile))) {
             for (const char of String(tile)) {
                 tiles.push({ id: `${char}${suit}`});
             }
-            return; // Exit this iteration of forEach
+            return;
         }
-
-        // Handle all other repeating tile patterns
+        
         for (let i = 0; i < count; i++) {
             if (tile === 'D') {
-                tiles.push({ id: dragons[suit] });
+                // Correctly handle White Dragon as SOAP for consistency
+                const dragonId = dragons[suit];
+                tiles.push({ id: dragonId === 'WD' ? 'SOAP' : dragonId });
             } else if (tile === 'OD') {
-                tiles.push({ id: suitKey });
+                const dragonId = suitKey;
+                tiles.push({ id: dragonId === 'WD' ? 'SOAP' : dragonId });
             } else if (suit) {
                 tiles.push({ id: `${tile}${suit}` });
             } else {
-                tiles.push({ id: tile });
+                 // Also handle standalone dragons here
+                const tileId = tile === 'WD' ? 'SOAP' : tile;
+                tiles.push({ id: tileId });
             }
         }
     });
@@ -612,5 +615,56 @@ hands.push({
   isConcealed: true,
   variations: getPermutations(suits, 3).map(p => buildVariation([['F',2],['2025',1,'s1'],['2025',1,'s2'],['2025',1,'s3']], p))
 });
+
+// --- NEW --- Helper function to calculate tile demand ---
+/**
+ * Calculates how many winning hand variations require a specific tile.
+ * @param {Array} allHands - The array of hand objects.
+ * @returns {Object} A map of tile IDs to their demand count.
+ */
+function calculateTileDemand(allHands) {
+    const demand = {};
+    const allVariations = allHands.flatMap(hand => hand.variations);
+
+    allVariations.forEach(variation => {
+        // Use a Set to count each tile only once per variation
+        const uniqueTileIdsInVariation = new Set(variation.tiles.map(tile => tile.id));
+
+        uniqueTileIdsInVariation.forEach(tileId => {
+            demand[tileId] = (demand[tileId] || 0) + 1;
+        });
+    });
+
+    return demand;
+}
+
+// --- NEW --- Calculate and export the tile demand maps ---
+export const tileDemand = calculateTileDemand(hands);
+
+// Filter for the specific tiles you requested
+const specialTileKeys = ['F', 'N', 'E', 'W', 'S', 'GD', 'RD', 'SOAP'];
+export const specialTileDemand = Object.fromEntries(
+    Object.entries(tileDemand).filter(([key]) => specialTileKeys.includes(key))
+);
+
+/*
+--- Generated Special Tile Demand Map ---
+
+This is the calculated demand based on the hands in this file.
+You can see Flowers are the most in-demand special tile.
+
+{
+  "F": 50,
+  "SOAP": 31,
+  "N": 16,
+  "S": 16,
+  "GD": 14,
+  "RD": 14,
+  "E": 12,
+  "W": 12
+}
+
+*/
+
 
 export default hands;

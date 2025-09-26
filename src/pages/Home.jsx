@@ -1,4 +1,5 @@
 // src/pages/Home.jsx
+
 import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/PageHeader';
 import TileGrid from '../components/TileGrid';
@@ -10,12 +11,12 @@ import HandDisplay from '../components/HandDisplay';
 import calculateProbabilities from '../helpers/probabilityCalculator';
 import MissingTilesGrid from '../components/MissingTilesGrid';
 import { findMissingTiles } from '../helpers/findMissingTiles';
-// --- NEW IMPORTS ---
 import { generateRandomHand } from '../helpers/randomHandGenerator';
 import QuizIntro from '../components/QuizIntro';
 import QuizSectionSelect from '../components/QuizSectionSelect';
 import QuizHandSelect from '../components/QuizHandSelect';
 import QuizResults from '../components/QuizResults';
+import EditHandModal from '../components/EditHandModal'; // This import should already be here
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -26,7 +27,6 @@ const GAME_PHASES = {
     FINAL_GET: 'FINAL_GET',
     GAME_STARTED: 'GAME_STARTED',
     REVEAL: 'REVEAL',
-    // --- NEW QUIZ PHASES ---
     QUIZ_INTRO: 'QUIZ_INTRO',
     QUIZ_SELECT_SECTION: 'QUIZ_SELECT_SECTION',
     QUIZ_SELECT_HAND: 'QUIZ_SELECT_HAND',
@@ -51,8 +51,8 @@ function Home({ onMenuToggle }) {
     const [probabilities, setProbabilities] = useState({});
     const [targetHand, setTargetHand] = useState(null);
     const [isDealer, setIsDealer] = useState(false);
-    const [jokerCount, setJokerCount] = useState(8);
-    const [blankCount, setBlankCount] = useState(0);
+    const [jokerCount, setJokerCount] = useState(10);
+    const [blankCount, setBlankCount] = useState(6);
     const [charlestonPassIndex, setCharlestonPassIndex] = useState(0);
     const [tilesToPass, setTilesToPass] = useState([]);
     const [receivedTiles, setReceivedTiles] = useState({});
@@ -67,11 +67,13 @@ function Home({ onMenuToggle }) {
     const [charlestonHistory, setCharlestonHistory] = useState([]);
     const [ghostDecision, setGhostDecision] = useState({ action: 'continue' });
 
-    // --- NEW STATE FOR QUIZ MODE ---
     const [quizHand, setQuizHand] = useState({});
     const [userPicks, setUserPicks] = useState([]);
     const [quizResults, setQuizResults] = useState(null);
     const [selectedSection, setSelectedSection] = useState(null);
+
+    // --- NEW --- State to control the editing modal
+    const [isEditingHand, setIsEditingHand] = useState(false);
 
     const maxHandSize = isDealer ? 14 : 13;
 
@@ -109,10 +111,10 @@ function Home({ onMenuToggle }) {
 
     useEffect(() => {
         const isQuizPhase = gamePhase.startsWith('QUIZ');
-        if (isQuizPhase) return; // Don't run this for quiz mode
+        if (isQuizPhase) return;
 
         if (handAsArray.length < maxHandSize) {
-            setSortedHands([]); // Clear hands if not a full hand
+            setSortedHands([]);
             return;
         }
 
@@ -199,11 +201,15 @@ function Home({ onMenuToggle }) {
         setGamePhase(GAME_PHASES.CHARLESTON_PASS);
     };
     
-    const goBackToSelection = () => {
-        setGamePhase(GAME_PHASES.INITIAL_SELECTION);
-        setCharlestonPassIndex(0);
-        setIsBlindPassing(false);
+    // --- MODIFIED --- This function is now for saving the edited hand from the modal
+    const handleHandUpdate = (newHand) => {
+      setPlayerHand(newHand);
+      setIsEditingHand(false); // Close the modal
+      // Clear tiles selected for passing, as they might now be invalid
+      setTilesToPass([]); 
     };
+
+    // --- MODIFIED --- The goBackToSelection function has been removed
 
     const handleSelectTileToPass = (instanceKey) => {
         setTilesToPass(prev => {
@@ -457,7 +463,6 @@ function Home({ onMenuToggle }) {
         }
     }
 
-    // This variable is needed for the disabled state of the confirm button
     const isConfirmButtonActive = totalTileCount === maxHandSize;
 
     return (
@@ -466,10 +471,15 @@ function Home({ onMenuToggle }) {
                 <>
                     <PageHeader title="Select Your Tiles" onMenuToggle={onMenuToggle} />
                     {totalTileCount > 0 && (
-                        <div className="tile-counter">
-                            {totalTileCount} / {maxHandSize}
-                        </div>
-                    )}
+    <div className="hand-confirmation-widget">
+        <div className="tile-counter">
+            {totalTileCount} / {maxHandSize}
+        </div>
+        <button className="btn-confirm" onClick={startCharleston} disabled={!isConfirmButtonActive}>
+            Confirm Hand & Start Charleston
+        </button>
+    </div>
+)}
                     <div className="initial-selection-header">
                         <div className="settings-container">
                             <div>
@@ -499,9 +509,7 @@ function Home({ onMenuToggle }) {
                         </div>
                         <div className="action-buttons">
                             <button className="btn-neutral quiz-button" onClick={() => setGamePhase(GAME_PHASES.QUIZ_INTRO)}>Start Quiz</button>
-                            <button className="btn-confirm" onClick={startCharleston} disabled={!isConfirmButtonActive}>
-                                Confirm Hand & Start Charleston
-                            </button>
+                            
                         </div>
                     </div>
                     <TileGrid 
@@ -516,7 +524,8 @@ function Home({ onMenuToggle }) {
             {(gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.FINAL_PASS) && (
                  <>
                     <PageHeader title={pageTitle} onMenuToggle={onMenuToggle} />
-                    <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
+                    {/* --- MODIFIED --- This button now opens the modal */}
+                    <button className="btn-neutral" onClick={() => setIsEditingHand(true)} style={{marginBottom: '10px', marginLeft: '20px'}}>Oh-Oh (edit hand)</button>
                     
                     {isBlindPassing && (
                         <div style={{padding: '10px 20px'}}>
@@ -561,7 +570,8 @@ function Home({ onMenuToggle }) {
             {gamePhase === GAME_PHASES.CHARLESTON_DECISION && (
                 <>
                     <PageHeader title="Charleston Decision" onMenuToggle={onMenuToggle} />
-                     <button className="btn-neutral" onClick={goBackToSelection} style={{marginBottom: '10px', marginLeft: '20px'}}>&larr; Edit Hand</button>
+                    {/* --- MODIFIED --- This button now opens the modal */}
+                     <button className="btn-neutral" onClick={() => setIsEditingHand(true)} style={{marginBottom: '10px', marginLeft: '20px'}}>Oh-Oh (edit hand)</button>
                     <Hand hand={playerHand} topHand={activeTopHand} />
                     <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
                         <h3>Recommendation: <span style={{ color: charlestonDecision.action === 'skip' ? 'red' : 'green' }}>{charlestonDecision.action.toUpperCase()}</span></h3>
@@ -652,6 +662,17 @@ function Home({ onMenuToggle }) {
                         );
                     })}
                 </div>
+            )}
+
+            {/* --- NEW --- This renders the modal when isEditingHand is true */}
+            {isEditingHand && (
+                <EditHandModal
+                    currentHand={playerHand}
+                    onClose={() => setIsEditingHand(false)}
+                    onSave={handleHandUpdate}
+                    maxHandSize={handAsArray.length}
+                    blankCount={blankCount}
+                />
             )}
         </div>
     );
