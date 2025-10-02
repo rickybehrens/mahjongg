@@ -16,7 +16,7 @@ import QuizIntro from '../components/QuizIntro';
 import QuizSectionSelect from '../components/QuizSectionSelect';
 import QuizHandSelect from '../components/QuizHandSelect';
 import QuizResults from '../components/QuizResults';
-import EditHandModal from '../components/EditHandModal'; // This import should already be here
+import EditHandModal from '../components/EditHandModal';
 
 const GAME_PHASES = {
     INITIAL_SELECTION: 'INITIAL_SELECTION',
@@ -72,7 +72,6 @@ function Home({ onMenuToggle }) {
     const [quizResults, setQuizResults] = useState(null);
     const [selectedSection, setSelectedSection] = useState(null);
 
-    // --- NEW --- State to control the editing modal
     const [isEditingHand, setIsEditingHand] = useState(false);
 
     const maxHandSize = isDealer ? 14 : 13;
@@ -118,7 +117,8 @@ function Home({ onMenuToggle }) {
             return;
         }
 
-        const newResults = calculateProbabilities(handAsArray, activeWinningHands, { jokerCount, blankCount });
+        // --- MODIFIED --- Added remainingDeckCounts as the 4th argument
+        const newResults = calculateProbabilities(handAsArray, activeWinningHands, { jokerCount, blankCount }, remainingDeckCounts);
         setProbabilities(newResults);
 
         const handsWithMetrics = activeWinningHands.map(hand => ({
@@ -144,11 +144,17 @@ function Home({ onMenuToggle }) {
             const recommendation = recommendFinalPass(handAsArray, handsWithMetrics);
             setFinalPassRecommendation(recommendation);
         }
-    }, [playerHand, gamePhase, activeWinningHands, handAsArray, jokerCount, blankCount, maxHandSize]);
+    }, [playerHand, gamePhase, activeWinningHands, handAsArray, jokerCount, blankCount, maxHandSize, remainingDeckCounts, fullDeckCounts]);
 
     useEffect(() => {
         if (isLearningMode && (gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.CHARLESTON_DECISION || gamePhase === GAME_PHASES.FINAL_PASS)) {
-            const ghostResults = calculateProbabilities(ghostHandAsArray, activeWinningHands, { jokerCount, blankCount });
+            // --- MODIFIED --- Calculate remaining deck for ghost hand and pass it to the calculator
+            const ghostRemainingDeckCounts = { ...fullDeckCounts };
+            for (const tileId in ghostHand) {
+                ghostRemainingDeckCounts[tileId] = (ghostRemainingDeckCounts[tileId] || 0) - ghostHand[tileId];
+            }
+            const ghostResults = calculateProbabilities(ghostHandAsArray, activeWinningHands, { jokerCount, blankCount }, ghostRemainingDeckCounts);
+            
             const ghostHandsWithMetrics = activeWinningHands.map(hand => ({
                 ...hand,
                 prob: ghostResults[hand.name]?.prob || 0,
@@ -161,7 +167,7 @@ function Home({ onMenuToggle }) {
                 setGhostDecision(getCharlestonRecommendation(ghostHandsWithMetrics));
             }
         }
-    }, [ghostHand, gamePhase, isLearningMode]);
+    }, [ghostHand, gamePhase, isLearningMode, activeWinningHands, ghostHandAsArray, jokerCount, blankCount, fullDeckCounts]);
 
     const activeTopHand = targetHand || sortedHands[0];
 
@@ -201,15 +207,11 @@ function Home({ onMenuToggle }) {
         setGamePhase(GAME_PHASES.CHARLESTON_PASS);
     };
     
-    // --- MODIFIED --- This function is now for saving the edited hand from the modal
     const handleHandUpdate = (newHand) => {
       setPlayerHand(newHand);
-      setIsEditingHand(false); // Close the modal
-      // Clear tiles selected for passing, as they might now be invalid
+      setIsEditingHand(false);
       setTilesToPass([]); 
     };
-
-    // --- MODIFIED --- The goBackToSelection function has been removed
 
     const handleSelectTileToPass = (instanceKey) => {
         setTilesToPass(prev => {
@@ -222,7 +224,11 @@ function Home({ onMenuToggle }) {
 
     const handleExchange = () => {
         if (isLearningMode) {
-            const ghostResults = calculateProbabilities(ghostHandAsArray, activeWinningHands, { jokerCount, blankCount });
+            const ghostRemainingDeckCounts = { ...fullDeckCounts };
+            for (const tileId in ghostHand) {
+                ghostRemainingDeckCounts[tileId] = (ghostRemainingDeckCounts[tileId] || 0) - ghostHand[tileId];
+            }
+            const ghostResults = calculateProbabilities(ghostHandAsArray, activeWinningHands, { jokerCount, blankCount }, ghostRemainingDeckCounts);
             const ghostHandsWithMetrics = activeWinningHands.map(hand => ({...hand, prob: ghostResults[hand.name]?.prob || 0, value: ghostResults[hand.name]?.value || 0, bestVariation: ghostResults[hand.name]?.bestVariation }));
             ghostHandsWithMetrics.sort((a, b) => b.value - a.value);
             
@@ -392,7 +398,13 @@ function Home({ onMenuToggle }) {
                 const tileData = tiles.find(t => t.id === tileId);
                 return tileData ? Array(quantity).fill(tileData) : [];
             });
-            const allScores = calculateProbabilities(quizHandArray, activeWinningHands, { jokerCount, blankCount });
+
+            // --- MODIFIED --- Calculate remaining deck for quiz hand and pass it to the calculator
+            const quizRemainingDeckCounts = { ...fullDeckCounts };
+            for (const tileId in quizHand) {
+                quizRemainingDeckCounts[tileId] = (quizRemainingDeckCounts[tileId] || 0) - quizHand[tileId];
+            }
+            const allScores = calculateProbabilities(quizHandArray, activeWinningHands, { jokerCount, blankCount }, quizRemainingDeckCounts);
             
             const allHandsWithScores = activeWinningHands.map(h => ({
                 ...h,
@@ -471,15 +483,15 @@ function Home({ onMenuToggle }) {
                 <>
                     <PageHeader title="Select Your Tiles" onMenuToggle={onMenuToggle} />
                     {totalTileCount > 0 && (
-    <div className="hand-confirmation-widget">
-        <div className="tile-counter">
-            {totalTileCount} / {maxHandSize}
-        </div>
-        <button className="btn-confirm" onClick={startCharleston} disabled={!isConfirmButtonActive}>
-            Confirm Hand & Start Charleston
-        </button>
-    </div>
-)}
+                        <div className="hand-confirmation-widget">
+                            <div className="tile-counter">
+                                {totalTileCount} / {maxHandSize}
+                            </div>
+                            <button className="btn-confirm" onClick={startCharleston} disabled={!isConfirmButtonActive}>
+                                Confirm Hand & Start Charleston
+                            </button>
+                        </div>
+                    )}
                     <div className="initial-selection-header">
                         <div className="settings-container">
                             <div>
@@ -509,7 +521,6 @@ function Home({ onMenuToggle }) {
                         </div>
                         <div className="action-buttons">
                             <button className="btn-neutral quiz-button" onClick={() => setGamePhase(GAME_PHASES.QUIZ_INTRO)}>Start Quiz</button>
-                            
                         </div>
                     </div>
                     <TileGrid 
@@ -524,7 +535,6 @@ function Home({ onMenuToggle }) {
             {(gamePhase === GAME_PHASES.CHARLESTON_PASS || gamePhase === GAME_PHASES.FINAL_PASS) && (
                  <>
                     <PageHeader title={pageTitle} onMenuToggle={onMenuToggle} />
-                    {/* --- MODIFIED --- This button now opens the modal */}
                     <button className="btn-neutral" onClick={() => setIsEditingHand(true)} style={{marginBottom: '10px', marginLeft: '20px'}}>Oh-Oh (edit hand)</button>
                     
                     {isBlindPassing && (
@@ -570,7 +580,6 @@ function Home({ onMenuToggle }) {
             {gamePhase === GAME_PHASES.CHARLESTON_DECISION && (
                 <>
                     <PageHeader title="Charleston Decision" onMenuToggle={onMenuToggle} />
-                    {/* --- MODIFIED --- This button now opens the modal */}
                      <button className="btn-neutral" onClick={() => setIsEditingHand(true)} style={{marginBottom: '10px', marginLeft: '20px'}}>Oh-Oh (edit hand)</button>
                     <Hand hand={playerHand} topHand={activeTopHand} />
                     <div style={{ margin: '20px', padding: '10px', border: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
@@ -664,7 +673,6 @@ function Home({ onMenuToggle }) {
                 </div>
             )}
 
-            {/* --- NEW --- This renders the modal when isEditingHand is true */}
             {isEditingHand && (
                 <EditHandModal
                     currentHand={playerHand}

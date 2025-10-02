@@ -3,9 +3,10 @@ import tilesData from '../data/tiles';
 
 /**
  * The main function to calculate probabilities and strategic values.
- * It now correctly handles joker restrictions for all singles and pairs.
+ * Now includes advanced logic for Quint hands based on joker availability.
  */
-function calculateProbabilities(playerHand, winningHands, gameSettings) {
+// --- MODIFIED --- Function now accepts remainingDeckCounts
+function calculateProbabilities(playerHand, winningHands, gameSettings, remainingDeckCounts) {
     const results = {};
 
     const playerTileCounts = {};
@@ -13,14 +14,18 @@ function calculateProbabilities(playerHand, winningHands, gameSettings) {
     let playerBlankCount = 0;
     
     playerHand.forEach(tile => {
-    if (tile.id === 'JOKER') playerJokerCount++;
-    else if (tile.id === 'BLANK') playerBlankCount++;
-    else {
-        // This line is the key. It normalizes 'WD' to 'SOAP' for counting purposes.
-        const tileId = tile.id === 'WD' ? 'SOAP' : tile.id; 
-        playerTileCounts[tileId] = (playerTileCounts[tileId] || 0) + 1;
-    }
-});
+        if (tile.id === 'JOKER') playerJokerCount++;
+        else if (tile.id === 'BLANK') playerBlankCount++;
+        else {
+            const tileId = tile.id === 'WD' ? 'SOAP' : tile.id; 
+            playerTileCounts[tileId] = (playerTileCounts[tileId] || 0) + 1;
+        }
+    });
+
+    // --- NEW --- Calculate total tiles and jokers remaining in the deck for probability calculations
+    const jokersLeftInDeck = remainingDeckCounts ? (remainingDeckCounts['JOKER'] || 0) : 0;
+    const totalTilesLeftInDeck = remainingDeckCounts ? Object.values(remainingDeckCounts).reduce((sum, count) => sum + count, 0) : 1;
+    const probOfDrawingOneJoker = totalTilesLeftInDeck > 0 ? jokersLeftInDeck / totalTilesLeftInDeck : 0;
 
     winningHands.forEach(winningHand => {
         let bestProb = 0;
@@ -30,8 +35,8 @@ function calculateProbabilities(playerHand, winningHands, gameSettings) {
         if (winningHand.variations && winningHand.variations.length > 0) {
             winningHand.variations.forEach(variation => {
                 let tilesNeeded = 0;
-                let nonJokerableGaps = 0; // Gaps that CANNOT be filled by jokers (singles/pairs)
-                let jokerReliantGaps = 0; // Gaps that REQUIRE a joker (e.g., for a 5th tile)
+                let nonJokerableGaps = 0; 
+                let jokerReliantGaps = 0;
 
                 const requiredTileCounts = {};
                 for (const needed of variation.tiles) {
@@ -46,8 +51,6 @@ function calculateProbabilities(playerHand, winningHands, gameSettings) {
                         const missingCount = requiredCount - playerHasCount;
                         tilesNeeded += missingCount;
                         
-                        // --- THIS IS THE FIX ---
-                        // If a required group is a single or a pair, jokers cannot be used.
                         if (requiredCount < 3) {
                             nonJokerableGaps += missingCount;
                         }
@@ -61,40 +64,38 @@ function calculateProbabilities(playerHand, winningHands, gameSettings) {
                     }
                 }
 
-                // --- REVISED CALCULATION FOR UNFILLABLE TILES ---
-                // 1. Use blanks first for the hardest-to-fill gaps (singles/pairs).
                 const blanksOnNonJokerable = Math.min(nonJokerableGaps, playerBlankCount);
                 const remainingBlanks = playerBlankCount - blanksOnNonJokerable;
                 const unfillableNonJokerable = nonJokerableGaps - blanksOnNonJokerable;
 
-                // 2. Use jokers for the remaining "jokerable" gaps.
                 const jokerableGaps = tilesNeeded - nonJokerableGaps;
                 const jokersOnJokerable = Math.min(jokerableGaps, playerJokerCount);
                 
-                // 3. Use any leftover blanks to fill any remaining jokerable gaps.
                 const remainingJokerableGaps = jokerableGaps - jokersOnJokerable;
                 const blanksOnJokerable = Math.min(remainingJokerableGaps, remainingBlanks);
                 const unfillableJokerable = remainingJokerableGaps - blanksOnJokerable;
 
-                // The final number of tiles the player still needs.
                 const finalTilesNeeded = unfillableNonJokerable + unfillableJokerable;
                 
                 const handSize = variation.tiles.length || 14;
                 const completionScore = (handSize - finalTilesNeeded) / handSize;
 
-                // --- STRATEGIC MODIFIERS ---
                 let strategicModifier = 1.0;
 
-                // 1. Penalty for Concealed hands that still have unfillable non-jokerable gaps.
-                // These must be drawn from the wall, which is difficult.
                 if (winningHand.isConcealed && unfillableNonJokerable > 0) {
                     strategicModifier *= Math.pow(0.65, unfillableNonJokerable);
                 }
 
-                // 2. Penalty for Quint hands if the player doesn't have enough jokers.
+                // --- REVISED QUINT/JOKER LOGIC ---
+                // This replaces the old, flat penalty with a more dynamic, probabilistic one.
                 const jokersStillNeeded = Math.max(0, jokerReliantGaps - playerJokerCount);
+
                 if (jokersStillNeeded > 0) {
-                    strategicModifier *= Math.pow(0.5, jokersStillNeeded);
+                    // Calculate the probability of acquiring the necessary jokers from the wall.
+                    // This is a strong penalty, as drawing specific tiles is very hard.
+                    // We use Math.pow because you need to succeed multiple times.
+                    const jokerAcquisitionModifier = Math.pow(probOfDrawingOneJoker, jokersStillNeeded);
+                    strategicModifier *= jokerAcquisitionModifier;
                 }
                 
                 const handValue = winningHand.value || 25;
