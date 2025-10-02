@@ -13,13 +13,14 @@ function calculateProbabilities(playerHand, winningHands, gameSettings) {
     let playerBlankCount = 0;
     
     playerHand.forEach(tile => {
-        if (tile.id === 'JOKER') playerJokerCount++;
-        else if (tile.id === 'BLANK') playerBlankCount++;
-        else {
-            const tileId = tile.id === 'WD' ? 'SOAP' : tile.id;
-            playerTileCounts[tileId] = (playerTileCounts[tileId] || 0) + 1;
-        }
-    });
+    if (tile.id === 'JOKER') playerJokerCount++;
+    else if (tile.id === 'BLANK') playerBlankCount++;
+    else {
+        // This line is the key. It normalizes 'WD' to 'SOAP' for counting purposes.
+        const tileId = tile.id === 'WD' ? 'SOAP' : tile.id; 
+        playerTileCounts[tileId] = (playerTileCounts[tileId] || 0) + 1;
+    }
+});
 
     winningHands.forEach(winningHand => {
         let bestProb = 0;
