@@ -1,11 +1,6 @@
 // src/helpers/probabilityCalculator.js
 import tilesData from '../data/tiles';
 
-/**
- * The main function to calculate probabilities and strategic values.
- * Now includes advanced logic for Quint hands based on joker availability.
- */
-// --- MODIFIED --- Function now accepts remainingDeckCounts
 function calculateProbabilities(playerHand, winningHands, gameSettings, remainingDeckCounts) {
     const results = {};
 
@@ -22,7 +17,6 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
         }
     });
 
-    // --- NEW --- Calculate total tiles and jokers remaining in the deck for probability calculations
     const jokersLeftInDeck = remainingDeckCounts ? (remainingDeckCounts['JOKER'] || 0) : 0;
     const totalTilesLeftInDeck = remainingDeckCounts ? Object.values(remainingDeckCounts).reduce((sum, count) => sum + count, 0) : 1;
     const probOfDrawingOneJoker = totalTilesLeftInDeck > 0 ? jokersLeftInDeck / totalTilesLeftInDeck : 0;
@@ -71,7 +65,7 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
                 const jokerableGaps = tilesNeeded - nonJokerableGaps;
                 const jokersOnJokerable = Math.min(jokerableGaps, playerJokerCount);
                 
-                const remainingJokerableGaps = jokerableGaps - jokersOnJokerable;
+                const remainingJokerableGaps = jokersOnJokerable - jokersOnJokerable;
                 const blanksOnJokerable = Math.min(remainingJokerableGaps, remainingBlanks);
                 const unfillableJokerable = remainingJokerableGaps - blanksOnJokerable;
 
@@ -86,24 +80,25 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
                     strategicModifier *= Math.pow(0.65, unfillableNonJokerable);
                 }
 
-                // --- REVISED QUINT/JOKER LOGIC ---
-                // This replaces the old, flat penalty with a more dynamic, probabilistic one.
                 const jokersStillNeeded = Math.max(0, jokerReliantGaps - playerJokerCount);
 
                 if (jokersStillNeeded > 0) {
-                    // Calculate the probability of acquiring the necessary jokers from the wall.
-                    // This is a strong penalty, as drawing specific tiles is very hard.
-                    // We use Math.pow because you need to succeed multiple times.
                     const jokerAcquisitionModifier = Math.pow(probOfDrawingOneJoker, jokersStillNeeded);
                     strategicModifier *= jokerAcquisitionModifier;
                 }
                 
+                // --- MODIFIED ---
+                // 1. Calculate the final, penalized probability score
+                const penalizedCompletionScore = completionScore * strategicModifier;
+                
+                // 2. Calculate Strategic Value using the new penalized score
                 const handValue = winningHand.value || 25;
-                const strategicValue = completionScore * handValue * strategicModifier;
+                const strategicValue = penalizedCompletionScore * handValue;
                 
                 if (strategicValue > bestValue) {
                     bestValue = strategicValue;
-                    bestProb = completionScore;
+                    // 3. Store the penalized score as the "prob" to be displayed
+                    bestProb = penalizedCompletionScore; 
                     bestVariation = variation;
                 }
             });
