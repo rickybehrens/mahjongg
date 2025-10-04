@@ -12,8 +12,7 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
         if (tile.id === 'JOKER') playerJokerCount++;
         else if (tile.id === 'BLANK') playerBlankCount++;
         else {
-            const tileId = tile.id === 'WD' ? 'SOAP' : tile.id; 
-            playerTileCounts[tileId] = (playerTileCounts[tileId] || 0) + 1;
+            playerTileCounts[tile.id] = (playerTileCounts[tile.id] || 0) + 1;
         }
     });
 
@@ -45,7 +44,11 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
                         const missingCount = requiredCount - playerHasCount;
                         tilesNeeded += missingCount;
                         
-                        if (requiredCount < 3) {
+                        // This list contains all special (non-numbered) tiles.
+                        const specialTiles = ['N', 'E', 'W', 'S', 'GD', 'RD', 'WD', 'SOAP', 'F'];
+                        
+                        // If a required group is a single, a pair, OR a special tile, it cannot be filled by a Joker.
+                        if (requiredCount < 3 || specialTiles.includes(tileId)) {
                             nonJokerableGaps += missingCount;
                         }
                     }
@@ -65,7 +68,7 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
                 const jokerableGaps = tilesNeeded - nonJokerableGaps;
                 const jokersOnJokerable = Math.min(jokerableGaps, playerJokerCount);
                 
-                const remainingJokerableGaps = jokersOnJokerable - jokersOnJokerable;
+                const remainingJokerableGaps = jokerableGaps - jokersOnJokerable;
                 const blanksOnJokerable = Math.min(remainingJokerableGaps, remainingBlanks);
                 const unfillableJokerable = remainingJokerableGaps - blanksOnJokerable;
 
@@ -79,7 +82,7 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
                 if (winningHand.isConcealed && unfillableNonJokerable > 0) {
                     strategicModifier *= Math.pow(0.65, unfillableNonJokerable);
                 }
-
+                
                 const jokersStillNeeded = Math.max(0, jokerReliantGaps - playerJokerCount);
 
                 if (jokersStillNeeded > 0) {
@@ -87,17 +90,13 @@ function calculateProbabilities(playerHand, winningHands, gameSettings, remainin
                     strategicModifier *= jokerAcquisitionModifier;
                 }
                 
-                // --- MODIFIED ---
-                // 1. Calculate the final, penalized probability score
                 const penalizedCompletionScore = completionScore * strategicModifier;
                 
-                // 2. Calculate Strategic Value using the new penalized score
                 const handValue = winningHand.value || 25;
                 const strategicValue = penalizedCompletionScore * handValue;
                 
                 if (strategicValue > bestValue) {
                     bestValue = strategicValue;
-                    // 3. Store the penalized score as the "prob" to be displayed
                     bestProb = penalizedCompletionScore; 
                     bestVariation = variation;
                 }

@@ -498,16 +498,11 @@ hands.push({
     ]
 });
 
-// CORRECTED Winds-Dragons - Hand 8
-['GD', 'RD', 'WD'].forEach(d => {
-    hands.push({
-        name: `Winds-Dragons - Hand 8 (${d})`,
-        value: 30,
-        isConcealed: true,
-        variations: [
-            buildVariation([['N', 2], ['E', 2], ['W', 3], ['S', 3], [d, 4]], [])
-        ]
-    });
+hands.push({
+    name: 'Winds-Dragons - Hand 8',
+    value: 30,
+    isConcealed: true,
+    variations: [['GD', 'RD', 'WD']].map(d => buildVariation([['N', 2], ['E', 2], ['W', 3], ['S', 3], [d[0], 4]], []))
 });
 
 // --- SECTION: 369 ---
